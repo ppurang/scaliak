@@ -53,10 +53,8 @@ class ScaliakBucket(rawClient: RawClient,
     val emptyFetchMeta = new FetchMeta.Builder().build()
     (rawClient.fetch(name, key, emptyFetchMeta).pure[IO] map {
       handleResponseValues(_)
-    } map2 { (validResponse: RiakResponse) =>
-      validResponse.asScala.head
     } map2 {
-      convertRiakObject(_: IRiakObject)
+      ((_: RiakResponse).asScala.head) andThen (convertRiakObject(_: IRiakObject))
     } map {
       _ flatMap(o => converter.read(o).toOption) // discarding errors in conversion for now
     }).catchLeft map { validation(_) }
