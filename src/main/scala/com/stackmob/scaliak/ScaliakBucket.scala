@@ -16,12 +16,6 @@ import com.basho.riak.client.IRiakObject
  * Time: 10:37 PM
  */
 
-// values to be options:
-// * backend
-// * post commit hooks
-// * pre commit hooks
-// * last write wins
-
 class ScaliakBucket(rawClient: RawClient,
                     val name: String,
                     val allowSiblings: Boolean,
