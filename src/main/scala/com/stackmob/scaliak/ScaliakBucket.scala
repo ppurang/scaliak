@@ -54,7 +54,7 @@ class ScaliakBucket(rawClient: RawClient,
     (rawClient.fetch(name, key, emptyFetchMeta).pure[IO] map {
       handleResponseValues(_)
     } map2 {
-      ((_: RiakResponse).asScala.head) andThen (convertRiakObject(_: IRiakObject))
+      ((_: RiakResponse).asScala.head)
     } map {
       _ flatMap(o => converter.read(o).toOption) // discarding errors in conversion for now
     }).catchLeft map { validation(_) }
@@ -67,16 +67,6 @@ class ScaliakBucket(rawClient: RawClient,
     }
     else throw new Exception("not handling conflicts yet")
 
-  private def convertRiakObject(obj: IRiakObject) = {
-    new ScaliakObject(
-      key = obj.getKey,
-      bytes = obj.getValue,
-      bucket = obj.getBucket,
-      vClock = obj.getVClock,
-      vTag = Option(obj.getVtag),
-      contentType = obj.getContentType
-    )
-  }
 
 }
 

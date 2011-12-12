@@ -1,6 +1,7 @@
 package com.stackmob.scaliak
 
 import com.basho.riak.client.cap.VClock
+import com.basho.riak.client.IRiakObject
 
 /**
  * Created by IntelliJ IDEA.
@@ -22,4 +23,17 @@ class ScaliakObject(val key: String,
 
   def stringValue = new String(bytes)
 
+}
+
+object ScaliakObject {
+  implicit def IRiakObjectToScaliakObject(obj: IRiakObject): ScaliakObject = {
+    new ScaliakObject(
+      key = obj.getKey,
+      bytes = obj.getValue,
+      bucket = obj.getBucket,
+      vClock = obj.getVClock,
+      vTag = Option(obj.getVtag),
+      contentType = obj.getContentType
+    )
+  }
 }
