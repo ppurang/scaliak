@@ -5,7 +5,6 @@ import Scalaz._
 import effects._
 import com.basho.riak.client.raw.RawClient
 import java.io.IOException
-import org.apache.http.conn.HttpHostConnectException
 import com.basho.riak.client.http.response.RiakIORuntimeException
 import com.basho.riak.client.query.functions.{NamedErlangFunction, NamedFunction}
 
