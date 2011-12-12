@@ -49,7 +49,7 @@ class ScaliakBucket(rawClient: RawClient,
   // TODO: either need to resolve or return siblings
   // for now will throw exception that the default resolver
   // would "throw"
-  def fetchRaw(key: String): IO[Validation[Throwable, Option[ScaliakObject]]] = {
+  def fetch[T](key: String)(implicit converter: ScaliakConverter[T]): IO[Validation[Throwable, Option[T]]] = {
     val emptyFetchMeta = new FetchMeta.Builder().build()
     (rawClient.fetch(name, key, emptyFetchMeta).pure[IO] map {
       handleResponseValues(_)
@@ -57,6 +57,8 @@ class ScaliakBucket(rawClient: RawClient,
       validResponse.asScala.head
     } map2 {
       convertRiakObject(_: IRiakObject)
+    } map {
+      _ flatMap(o => converter.read(o).toOption) // discarding errors in conversion for now
     }).catchLeft map { validation(_) }
   }
 
@@ -78,4 +80,32 @@ class ScaliakBucket(rawClient: RawClient,
     )
   }
 
+}
+
+// TODO: change Throwable to ConversionError
+sealed trait ScaliakConverter[T] {
+  def read: ScaliakObject => ValidationNEL[Throwable, T]
+
+  def write: T => ScaliakObject
+}
+
+
+object ScaliakConverter extends ScaliakConverters {
+  implicit lazy val DefaultConverter = PassThroughConverter
+}
+
+trait ScaliakConverters {
+
+  def newConverter[T](r: ScaliakObject => ValidationNEL[Throwable, T],
+                      w: T => ScaliakObject) = new ScaliakConverter[T] {
+    def read = r
+
+    def write = w
+  }
+  
+  lazy val PassThroughConverter = newConverter[ScaliakObject](
+    (o =>
+      o.successNel[Throwable]),
+    (o => o)
+  )
 }

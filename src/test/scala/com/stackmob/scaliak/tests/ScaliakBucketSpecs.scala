@@ -6,12 +6,12 @@ import scalaz._
 import Scalaz._
 import effects._
 import com.basho.riak.client.query.functions.NamedErlangFunction
-import com.stackmob.scaliak.{ScaliakObject, ScaliakBucket}
 import com.basho.riak.client.raw.{RiakResponse, FetchMeta}
 import org.mockito.{Matchers => MM}
 import com.basho.riak.client.IRiakObject
 import com.basho.riak.client.cap.{VClock, Quorum}
 import org.mockito.stubbing.OngoingStubbing
+import com.stackmob.scaliak.{ScaliakObject, ScaliakBucket}
 
 /**
  * Created by IntelliJ IDEA.
@@ -72,14 +72,14 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
           "if the fetched object does not have int indexes"                         ^p^
           "if the fetched object has int indexes"                                   ^p^
                                                                                     p^p^
-      "Can set the r value for the request"                                         ! skipped ^
-                                                                                    p^
+      "Can set the r value for the request"                                         ! skipped ^ end
+    /*                                                                                p^
     "Fetching with Conversion"                                                      ^
       "When the key being fetched is missing"
       "when the key being fetched exists"
         "when there are no conflicts"
           ""
-                                                                                    end
+                                                                                    end*/
 
 
 
@@ -181,7 +181,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
 
     // the result after discarding any possible exceptions
     lazy val result: Option[ScaliakObject] = {
-      val r = bucket.fetchRaw(testKey).unsafePerformIO
+      val r: Validation[Throwable, Option[ScaliakObject]] = bucket.fetch(testKey).unsafePerformIO
 
       r.toOption | None
     }
