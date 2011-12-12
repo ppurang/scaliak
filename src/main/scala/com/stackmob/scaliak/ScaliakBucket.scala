@@ -68,7 +68,8 @@ class ScaliakBucket(rawClient: RawClient,
 sealed trait ScaliakConverter[T] {
   def read: ScaliakObject => ValidationNEL[Throwable, T]
 
-  def write: T => ScaliakObject
+//  def write: T => ScaliakObject
+
 }
 
 
@@ -78,16 +79,14 @@ object ScaliakConverter extends ScaliakConverters {
 
 trait ScaliakConverters {
 
-  def newConverter[T](r: ScaliakObject => ValidationNEL[Throwable, T],
-                      w: T => ScaliakObject) = new ScaliakConverter[T] {
+  def newConverter[T](r: ScaliakObject => ValidationNEL[Throwable, T]) = new ScaliakConverter[T] {
+
     def read = r
 
-    def write = w
   }
   
   lazy val PassThroughConverter = newConverter[ScaliakObject](
     (o =>
-      o.successNel[Throwable]),
-    (o => o)
+      o.successNel[Throwable])
   )
 }

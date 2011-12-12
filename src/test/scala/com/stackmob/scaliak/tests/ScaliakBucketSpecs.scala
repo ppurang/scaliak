@@ -11,7 +11,7 @@ import org.mockito.{Matchers => MM}
 import com.basho.riak.client.IRiakObject
 import com.basho.riak.client.cap.{VClock, Quorum}
 import org.mockito.stubbing.OngoingStubbing
-import com.stackmob.scaliak.{ScaliakObject, ScaliakBucket}
+import com.stackmob.scaliak.{ScaliakConverter, ScaliakObject, ScaliakBucket}
 
 /**
  * Created by IntelliJ IDEA.
@@ -32,16 +32,16 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
       "When the key being fetched is missing returns None"                          ! skipped ^
       "When the key being fetched exists"                                           ^
         "When there are no conflicts"                                               ^
-          "returns a ScaliakObject whose key is the same as the one fetched"        ! simpleFetchRaw.someWKey ^
-          "can get the stored bytes by calling getBytes on the returned object"     ! simpleFetchRaw.testGetBytes ^
-          "calling stringValue on the returned object returns the string value"     ! simpleFetchRaw.testStringValue ^
-          "the returned object has the same bucket name as the one used to fetch it"! simpleFetchRaw.testBucketName ^
-          "the returned object has a vclock"                                        ! simpleFetchRaw.testVClock ^
-          "calling vclockString returns the vclock as a string"                     ! simpleFetchRaw.testVClockStr ^
+          "returns a ScaliakObject whose key is the same as the one fetched"        ! simpleFetch.someWKey ^
+          "can get the stored bytes by calling getBytes on the returned object"     ! simpleFetch.testGetBytes ^
+          "calling stringValue on the returned object returns the string value"     ! simpleFetch.testStringValue ^
+          "the returned object has the same bucket name as the one used to fetch it"! simpleFetch.testBucketName ^
+          "the returned object has a vclock"                                        ! simpleFetch.testVClock ^
+          "calling vclockString returns the vclock as a string"                     ! simpleFetch.testVClockStr ^
           "if fetched object's vtag is set calling vTag returns Some w/ the vtag"   ! skipped ^
           "if fetched object's vtag is not set calling vTag returns None"           ! skipped ^
           "the returned object has a lastModified timestamp"                        ! skipped ^
-          "the returned object has a content type"                                  ! simpleFetchRaw.tContentType ^
+          "the returned object has a content type"                                  ! simpleFetch.tContentType ^
           "if the fetched object has an empty list of links"                        ^
             "links returns None"                                                    ! skipped ^
             "hasLinks returns false"                                                ! skipped ^
@@ -72,14 +72,16 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
           "if the fetched object does not have int indexes"                         ^p^
           "if the fetched object has int indexes"                                   ^p^
                                                                                     p^p^
-      "Can set the r value for the request"                                         ! skipped ^ end
-    /*                                                                                p^
+      "Can set the r value for the request"                                         ! skipped ^
+                                                                                    p^
     "Fetching with Conversion"                                                      ^
-      "When the key being fetched is missing"
-      "when the key being fetched exists"
-        "when there are no conflicts"
-          ""
-                                                                                    end*/
+      "When the key being fetched is missing returns None"                          ! skipped ^
+      "when the key being fetched exists"                                           ^
+        "when there are no conflicts"                                               ^
+          "when the conversion succeeds"                                            ^
+            "returns the object of type T when converter is supplied explicitly"    ! simpleFetch.testConversionExplicit ^
+            "returns the object of type T when converter is supplied implicitly"    ! simpleFetch.testConversionImplicit ^
+                                                                                    end
 
 
 
@@ -102,7 +104,9 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
     val mocked = mock[RiakResponse]
     mocked.getRiakObjects returns objects
     mocked.numberOfValues returns objects.length
-    mocked.iterator returns mockObjIterator(objects)
+    // this is a nasty hack , each thenReturns is the number of times this object can be used
+    // because the iterator is "spent"
+    mocked.iterator returns mockObjIterator(objects) thenReturns mockObjIterator(objects) thenReturns mockObjIterator(objects)
 
     mocked
   }
@@ -134,7 +138,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
     mocked
   }
 
-  object simpleFetchRaw {
+  object simpleFetch {
 
     val testBucket = "test_bucket"
     val testKey = "somekey"
@@ -177,6 +181,28 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
 
     def tContentType = {
       result must beSome.which { _.contentType == testContentType }
+    }
+
+    class DummyDomainObject(val someField: String)
+    val dummyDomainConverter = ScaliakConverter.newConverter[DummyDomainObject](
+      o => (new DummyDomainObject(o.key)).successNel[Throwable]
+    )
+
+    def testConversionExplicit = {
+      val r = bucket.fetch(testKey)(dummyDomainConverter).unsafePerformIO
+
+      (r.toOption | None) aka "the optional result discarding the exceptions" must beSome.which {
+        _.someField == testKey
+      }
+    }
+
+    def testConversionImplicit = {
+      implicit val converter = dummyDomainConverter
+      val r: Validation[Throwable, Option[DummyDomainObject]] = bucket.fetch(testKey).unsafePerformIO
+
+      (r.toOption | None) aka "the optional result discarding the exceptions" must beSome.which {
+        _.someField == testKey
+      }
     }
 
     // the result after discarding any possible exceptions
