@@ -67,7 +67,7 @@ class ScaliakBucket(rawClient: RawClient,
     }
     else throw new Exception("not handling conflicts yet")
 
-  def convertRiakObject(obj: IRiakObject) = {
+  private def convertRiakObject(obj: IRiakObject) = {
     new ScaliakObject(
       key = obj.getKey,
       bytes = obj.getValue,
