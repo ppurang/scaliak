@@ -40,9 +40,6 @@ class ScaliakBucket(rawClient: RawClient,
                     val linkWalkFunction: NamedErlangFunction,
                     val isSearchable: Boolean) {
 
-  // TODO: either need to resolve or return siblings
-  // for now will throw exception that the default resolver
-  // would "throw"
   def fetch[T](key: String)(implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
     val emptyFetchMeta = new FetchMeta.Builder().build()
     (rawClient.fetch(name, key, emptyFetchMeta).pure[IO] map {
