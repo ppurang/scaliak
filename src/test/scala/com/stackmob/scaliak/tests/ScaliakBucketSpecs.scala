@@ -6,12 +6,12 @@ import scalaz._
 import Scalaz._
 import effects._
 import com.basho.riak.client.query.functions.NamedErlangFunction
-import com.basho.riak.client.raw.{RiakResponse, FetchMeta}
 import org.mockito.{Matchers => MM}
 import com.basho.riak.client.IRiakObject
-import com.basho.riak.client.cap.{VClock, Quorum}
 import org.mockito.stubbing.OngoingStubbing
-import com.stackmob.scaliak.{ScaliakConverter, ScaliakObject, ScaliakBucket}
+import com.basho.riak.client.cap.{UnresolvedConflictException, VClock, Quorum}
+import com.basho.riak.client.raw.{RawClient, RiakResponse, FetchMeta}
+import com.stackmob.scaliak.{ScaliakResolver, ScaliakConverter, ScaliakObject, ScaliakBucket}
 
 /**
  * Created by IntelliJ IDEA.
@@ -71,9 +71,12 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
           "if the fetched object has bin indexes"                                   ^p^
           "if the fetched object does not have int indexes"                         ^p^
           "if the fetched object has int indexes"                                   ^p^
-                                                                                    p^p^
-      "Can set the r value for the request"                                         ! skipped ^
                                                                                     p^
+        "When there are conflicts"                                                  ^
+          "the default conflict resolver throws an UnresolvedConflictException"     ! conflictedFetch.testDefaultConflictRes ^
+                                                                                    p^
+      "Can set the r value for the request"                                         ! skipped ^
+                                                                                    p^p^
     "Fetching with Conversion"                                                      ^
       "When the key being fetched is missing returns None"                          ! skipped ^
       "when the key being fetched exists"                                           ^
@@ -82,8 +85,6 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
             "returns the object of type T when converter is supplied explicitly"    ! simpleFetch.testConversionExplicit ^
             "returns the object of type T when converter is supplied implicitly"    ! simpleFetch.testConversionImplicit ^
                                                                                     end
-
-
 
 
   def mockRiakObj(bucket: String, key: String, value: Array[Byte], contentType: String, vClockStr: String): IRiakObject = {
@@ -104,46 +105,43 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
     val mocked = mock[RiakResponse]
     mocked.getRiakObjects returns objects
     mocked.numberOfValues returns objects.length
-    // this is a nasty hack , each thenReturns is the number of times this object can be used
-    // because the iterator is "spent"
-    mocked.iterator returns mockObjIterator(objects) thenReturns mockObjIterator(objects) thenReturns mockObjIterator(objects)
 
     mocked
   }
 
-  def mockObjIterator(objects: Array[IRiakObject]) = {
-    def loop(remainingObjects: List[IRiakObject], stubHasNext: OngoingStubbing[Boolean], stubNext: OngoingStubbing[IRiakObject]) {
-      remainingObjects match {
-        case Nil => {
-          stubHasNext thenReturns false
-          stubNext thenReturns null
-        }
-        case x :: xs => {
-          stubHasNext thenReturns true
-          stubNext thenReturns x
-          loop(xs, stubHasNext, stubNext)
-        }
+  object conflictedFetch extends context {
+
+    val rawClient = mock[RawClient]
+    val bucket = createBucket
+
+    val mock1Bytes = Array[Byte](1, 2)
+    val mock1VClockStr = "a vclock"
+    val mockRiakObj1 = mockRiakObj(testBucket, testKey, mock1Bytes, testContentType, mock1VClockStr)
+
+    val mock2Bytes = Array[Byte](1, 3)
+    val mock2VClockStr = "a vclock2"
+    val mockRiakObj2 = mockRiakObj(testBucket, testKey, mock2Bytes, testContentType, mock2VClockStr)
+
+
+    val multiObjectResponse = mockRiakResponse(Array(mockRiakObj1, mockRiakObj2))
+
+    rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns multiObjectResponse
+
+
+    def testDefaultConflictRes = {
+      val r = bucket.fetch(testKey).unsafePerformIO
+
+      r.either must beLeft.like {
+        case e => ((_: Throwable) must beAnInstanceOf[UnresolvedConflictException]).forall(e.list)
       }
     }
-
-    val mocked = mock[java.util.Iterator[IRiakObject]]
-    val objList = objects.toList
-    if (objList.length > 0) {
-      loop(objList.tail, mocked.hasNext returns true, mocked.next returns objList.head)
-    } else {
-      mocked.hasNext returns false
-      mocked.next returns null
-    }
-
-    mocked
   }
 
-  object simpleFetch {
 
-    val testBucket = "test_bucket"
-    val testKey = "somekey"
-    val testContentType = "text/plain"
-    val rawClient = mock[com.basho.riak.client.raw.RawClient]
+  object simpleFetch extends context {
+
+    val rawClient = mock[RawClient]
+    val bucket = createBucket
 
     val mock1Bytes = Array[Byte](1, 2)
     val mock1VClockStr = "a vclock"
@@ -189,7 +187,8 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
     )
 
     def testConversionExplicit = {
-      val r = bucket.fetch(testKey)(dummyDomainConverter).unsafePerformIO
+      // this will fail unti you start explicitly passing a resolver
+      val r = bucket.fetch(testKey)(dummyDomainConverter, ScaliakResolver.DefaultResolver).unsafePerformIO
 
       (r.toOption | None) aka "the optional result discarding the exceptions" must beSome.which {
         _.someField == testKey
@@ -198,7 +197,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
 
     def testConversionImplicit = {
       implicit val converter = dummyDomainConverter
-      val r: Validation[Throwable, Option[DummyDomainObject]] = bucket.fetch(testKey).unsafePerformIO
+      val r: ValidationNEL[Throwable, Option[DummyDomainObject]] = bucket.fetch(testKey).unsafePerformIO
 
       (r.toOption | None) aka "the optional result discarding the exceptions" must beSome.which {
         _.someField == testKey
@@ -207,12 +206,21 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
 
     // the result after discarding any possible exceptions
     lazy val result: Option[ScaliakObject] = {
-      val r: Validation[Throwable, Option[ScaliakObject]] = bucket.fetch(testKey).unsafePerformIO
+      val r: ValidationNEL[Throwable, Option[ScaliakObject]] = bucket.fetch(testKey).unsafePerformIO
 
       r.toOption | None
     }
 
-    val bucket = new ScaliakBucket(
+  }
+
+  trait context {
+    val testBucket = "test_bucket"
+    val testKey = "somekey"
+    val testContentType = "text/plain"
+
+    def rawClient: RawClient
+
+    def createBucket = new ScaliakBucket(
       rawClient = rawClient,
       name = testBucket,
       allowSiblings = false,

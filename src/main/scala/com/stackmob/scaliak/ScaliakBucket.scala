@@ -4,10 +4,10 @@ import scalaz._
 import Scalaz._
 import effects._
 import com.basho.riak.client.query.functions.{NamedFunction, NamedErlangFunction}
-import com.basho.riak.client.cap.Quorum
 import com.basho.riak.client.raw.{RiakResponse, RawClient, FetchMeta}
-import scala.collection.JavaConverters.iterableAsScalaIterableConverter
+import scala.collection.JavaConverters._
 import com.basho.riak.client.IRiakObject
+import com.basho.riak.client.cap.{UnresolvedConflictException, Quorum}
 
 /**
  * Created by IntelliJ IDEA.
@@ -43,24 +43,20 @@ class ScaliakBucket(rawClient: RawClient,
   // TODO: either need to resolve or return siblings
   // for now will throw exception that the default resolver
   // would "throw"
-  def fetch[T](key: String)(implicit converter: ScaliakConverter[T]): IO[Validation[Throwable, Option[T]]] = {
+  def fetch[T](key: String)(implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
     val emptyFetchMeta = new FetchMeta.Builder().build()
     (rawClient.fetch(name, key, emptyFetchMeta).pure[IO] map {
-      handleResponseValues(_)
-    } map2 {
-      ((_: RiakResponse).asScala.head)
-    } map {
-      _ flatMap(o => converter.read(o).toOption) // discarding errors in conversion for now
-    }).catchLeft map { validation(_) }
+      response => {
+        ((response.getRiakObjects map { converter.read(_) }).toList.toNel map { sibs =>
+          resolver.resolve(sibs)
+        }) some { sibNel =>
+          sibNel map { _.some }
+        } none {
+          none.successNel
+        }
+      }
+    }) except { t => t.failNel.pure[IO] }
   }
-
-  private def handleResponseValues(riakResponse: RiakResponse) =
-    if (riakResponse.numberOfValues < 1) none
-    else if (riakResponse.numberOfValues == 1) {
-      some(riakResponse)
-    }
-    else throw new Exception("not handling conflicts yet")
-
 
 }
 
@@ -89,4 +85,21 @@ trait ScaliakConverters {
     (o =>
       o.successNel[Throwable])
   )
+}
+
+trait ScaliakResolver[T] {
+
+  def resolve(siblings: NonEmptyList[ValidationNEL[Throwable, T]]): ValidationNEL[Throwable, T]
+
+}
+
+object ScaliakResolver {
+
+  implicit def DefaultResolver[T] = new ScaliakResolver[T] {
+
+    def resolve(siblings: NonEmptyList[ValidationNEL[Throwable, T]]) =
+      if (siblings.count == 1) siblings.head
+      else throw new UnresolvedConflictException(null, "there were siblings", siblings.list.asJavaCollection)
+  }
+
 }
