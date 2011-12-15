@@ -47,7 +47,7 @@ class ScaliakBucket(rawClient: RawClient,
       response => {
         // TODO: can refactor this and whats in store to a single function that operators on riak responses
         ((response.getRiakObjects map { converter.read(_) }).toList.toNel map { sibs =>
-          resolver.resolve(sibs)
+          resolver(sibs)
         }).traverse[ScaliakConverter[T]#ReadResult, T](identity(_))
       }
     }) except { t => t.failNel.pure[IO] }
@@ -64,7 +64,7 @@ class ScaliakBucket(rawClient: RawClient,
         mbFetched => {
           // TODO: actually write the mutated domain object back to a ScaliakObject
           ((rawClient.store(mutator(mbFetched, obj), emptyStoreMeta).getRiakObjects map { converter.read(_) }).toList.toNel map { sibs =>
-            resolver.resolve(sibs)
+            resolver(sibs)
           }).traverse[ScaliakConverter[ScaliakObject]#ReadResult, ScaliakObject](identity(_))
         }
       }
@@ -104,10 +104,9 @@ trait ScaliakConverters {
   )
 }
 
-// TODO: CHANGE RESOLVE TO APPLY
 trait ScaliakResolver[T] {
 
-  def resolve(siblings: NonEmptyList[ValidationNEL[Throwable, T]]): ValidationNEL[Throwable, T]
+  def apply(siblings: NonEmptyList[ValidationNEL[Throwable, T]]): ValidationNEL[Throwable, T]
 
 }
 
@@ -115,7 +114,7 @@ object ScaliakResolver {
 
   implicit def DefaultResolver[T] = new ScaliakResolver[T] {
 
-    def resolve(siblings: NonEmptyList[ValidationNEL[Throwable, T]]) =
+    def apply(siblings: NonEmptyList[ValidationNEL[Throwable, T]]) =
       if (siblings.count == 1) siblings.head
       else throw new UnresolvedConflictException(null, "there were siblings", siblings.list.asJavaCollection)
   }
