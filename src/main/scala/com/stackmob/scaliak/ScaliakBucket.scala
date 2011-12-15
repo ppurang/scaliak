@@ -44,12 +44,7 @@ class ScaliakBucket(rawClient: RawClient,
   def fetch[T](key: String)(implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
     val emptyFetchMeta = new FetchMeta.Builder().build() // TODO: support fetch meta arguments
     (rawClient.fetch(name, key, emptyFetchMeta).pure[IO] map {
-      response => {
-        // TODO: can refactor this and whats in store to a single function that operators on riak responses
-        ((response.getRiakObjects map { converter.read(_) }).toList.toNel map { sibs =>
-          resolver(sibs)
-        }).traverse[ScaliakConverter[T]#ReadResult, T](identity(_))
-      }
+      riakResponseToResult(_)
     }) except { t => t.failNel.pure[IO] }
   }
   
@@ -63,12 +58,16 @@ class ScaliakBucket(rawClient: RawClient,
       _ flatMap {
         mbFetched => {
           // TODO: actually write the mutated domain object back to a ScaliakObject
-          ((rawClient.store(mutator(mbFetched, obj), emptyStoreMeta).getRiakObjects map { converter.read(_) }).toList.toNel map { sibs =>
-            resolver(sibs)
-          }).traverse[ScaliakConverter[ScaliakObject]#ReadResult, ScaliakObject](identity(_))
+          riakResponseToResult(rawClient.store(mutator(mbFetched, obj), emptyStoreMeta))
         }
       }
     }
+  }
+
+  def riakResponseToResult[T](r: RiakResponse)(implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): ValidationNEL[Throwable, Option[T]] = {
+    ((r.getRiakObjects map { converter.read(_) }).toList.toNel map { sibs =>
+      resolver(sibs)
+    }).traverse[ScaliakConverter[T]#ReadResult, T](identity(_))
   }
 
   // def delete(obj: T): IO[ValidationNEL[Throwable, Unit]]
