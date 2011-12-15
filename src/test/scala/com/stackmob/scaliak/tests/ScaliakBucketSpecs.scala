@@ -6,12 +6,12 @@ import scalaz._
 import Scalaz._
 import effects._
 import com.basho.riak.client.query.functions.NamedErlangFunction
-import org.mockito.{Matchers => MM}
 import com.basho.riak.client.IRiakObject
 import org.mockito.stubbing.OngoingStubbing
 import com.basho.riak.client.cap.{UnresolvedConflictException, VClock, Quorum}
-import com.basho.riak.client.raw.{RawClient, RiakResponse, FetchMeta}
-import com.stackmob.scaliak.{ScaliakResolver, ScaliakConverter, ScaliakObject, ScaliakBucket}
+import org.mockito.{ArgumentMatcher, Matchers => MM}
+import com.basho.riak.client.raw.{StoreMeta, RawClient, RiakResponse, FetchMeta}
+import com.stackmob.scaliak._
 
 /**
  * Created by IntelliJ IDEA.
@@ -84,29 +84,164 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
           "when the conversion succeeds"                                            ^
             "returns the object of type T when converter is supplied explicitly"    ! simpleFetch.testConversionExplicit ^
             "returns the object of type T when converter is supplied implicitly"    ! simpleFetch.testConversionImplicit ^
+                                                                                    endp^
+  "Writing Data"                                                                    ^
+    "With No Conversion"                                                            ^
+      "When the Key Being Fetched Does Not Exist"                                   ^
+        """Given the default "Clobber Mutator""""                                   ^
+          "Writes the ScaliakObject as passed in (converted to an IRiakObject)"     ! writeMissing.performsWrite ^
+          "returns Success(None) when return body is false (default)"               ! writeMissing.noReturnBody ^
+          "returns successfully with the stored object as a ScaliakObject instance" ! writeMissingReturnBody.noConversion ^
+                                                                                    p^
+        "Given a mutator other than the default"                                    ^
+          "Writes the ScaliakObject as returned from the mutator"                   ! writeMissing.customMutator ^
+                                                                                    p^p^
+      "When the Key Being Fetched Exists"                                           ^
+        """Given the default "Clobber Mutator""""                                   ^
+          "Writes the ScaliakObject as passed in (converted to an IRiakObject)"     ! writeExisting.performsWrite ^
+          "returns Success(None) when return body is false (default)"               ! writeExisting.noReturnBody ^
+          "returns successfully with the stored object as a ScaliakObject instance" ! writeExistingReturnBody.noConversion ^
+                                                                                    p^
+        "Given a mutator other than the default"                                    ^
+          "Writes the ScaliakObject as returned from the mutator"                   ! skipped ^
                                                                                     end
 
 
-  def mockRiakObj(bucket: String, key: String, value: Array[Byte], contentType: String, vClockStr: String): IRiakObject = {
-    val mocked = mock[IRiakObject]
-    val mockedVClock = mock[VClock]
-    mockedVClock.asString returns vClockStr
-    mockedVClock.getBytes returns vClockStr.getBytes
-    mocked.getKey returns key
-    mocked.getValue returns value
-    mocked.getBucket returns bucket
-    mocked.getVClock returns mockedVClock
-    mocked.getContentType returns contentType
+  object writeExistingReturnBody extends writeBase {
+    val mock2VClockStr = "vclock2"
+    val mockStoreObj = mockRiakObj(testBucket, testKey, testStoreObject.getBytes, testContentType, mock2VClockStr)
+    val mockStoreResponse = mockRiakResponse(Array(mockStoreObj))
 
-    mocked
+    val mock1VClockStr = "vclock1"
+    val mockFetchObj = mockRiakObj(testBucket, testKey, "abc".getBytes, testContentType, mock1VClockStr)
+    rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockRiakResponse(Array(mockFetchObj))
+
+    val extractor = new MockitoExtractor
+    rawClient.store(MM.argThat(extractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
+
+    def noConversion = {
+      val r = result.toOption | None
+      r aka "the object returned from store or None" must beSome[ScaliakObject].which { obj =>
+        obj.stringValue == testStoreObject.stringValue && obj.vClockString == mock2VClockStr
+      }
+    }
   }
 
-  def mockRiakResponse(objects: Array[IRiakObject]) = {
-    val mocked = mock[RiakResponse]
-    mocked.getRiakObjects returns objects
-    mocked.numberOfValues returns objects.length
+  object writeMissingReturnBody extends writeBase {
+    val mock2VClockStr = "vclock2"
+    val mockStoreObj = mockRiakObj(testBucket, testKey, testStoreObject.getBytes, testContentType, mock2VClockStr)
+    val mockStoreResponse = mockRiakResponse(Array(mockStoreObj))
+    rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockRiakResponse(Array())
 
-    mocked
+    val extractor = new MockitoExtractor
+    rawClient.store(MM.argThat(extractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
+
+    def noConversion = {
+      val r = result.toOption | None
+      r aka "the object returned from store or None" must beSome[ScaliakObject].which { obj =>
+        obj.stringValue == testStoreObject.stringValue && obj.vClockString == mock2VClockStr
+      }
+    }
+  }
+
+  object writeExisting extends writeBase {
+    val mock1Bytes = Array[Byte](1, 2)
+    val mock1VClockStr = "a vclock"
+    val mockRiakObj1 = mockRiakObj(testBucket, testKey, mock1Bytes, testContentType, mock1VClockStr)
+
+    val mockResponse = mockRiakResponse(Array(mockRiakObj1))
+
+    rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
+
+    val extractor = new MockitoExtractor
+    val mockStoreResponse = mockRiakResponse(Array())
+    rawClient.store(MM.argThat(extractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse // TODO: these should not return null
+  }
+
+
+  object writeMissing extends writeBase {
+    val mockResponse = mockRiakResponse(Array())
+    rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
+
+    val extractor = new MockitoExtractor
+    val mockStoreResponse = mockRiakResponse(Array())
+    rawClient.store(MM.argThat(extractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
+    
+    
+    def customMutator = {
+      val newRawClient = mock[RawClient]
+      val newBucket = createBucketWithClient(newRawClient)
+      newRawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
+      val newExtractor = new MockitoExtractor      
+      newRawClient.store(MM.argThat(newExtractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
+
+      var fakeValue: String = "fail"
+      implicit val mutator = ScaliakMutation.newMutation[ScaliakObject] {
+        (o: Option[ScaliakObject], n: ScaliakObject) => {
+          fakeValue = "custom"
+          n.copy(bytes = fakeValue.getBytes)
+        }
+      }
+      newBucket.store(testStoreObject).unsafePerformIO
+            
+      newExtractor.argument must beSome.like {
+        case obj => obj.getValueAsString must_== fakeValue
+      }
+    }
+  }
+
+  trait writeBase extends context {
+    val rawClient = mock[RawClient]
+    val bucket = createBucket
+    def extractor: MockitoExtractor
+
+    class CustomMutation extends ScaliakMutation[ScaliakObject] {
+      val fakeValue = "custom"
+      def apply(old: Option[ScaliakObject], newObj: ScaliakObject) = {
+        newObj.copy(bytes = fakeValue.getBytes)
+      }
+    }
+    
+
+    lazy val result = bucket.store(testStoreObject).unsafePerformIO
+
+    val mockVClock = mock[VClock]
+    mockVClock.getBytes returns Array[Byte]()
+    mockVClock.asString returns ""
+    val testStoreObject = new ScaliakObject(
+      testKey,
+      testBucket,
+      testContentType,
+      mockVClock,
+      None,
+      "".getBytes
+    )
+
+    class MockitoExtractor extends ArgumentMatcher[IRiakObject] {
+      var argument: Option[IRiakObject] = None
+
+      def matches(arg: AnyRef): Boolean = {
+        argument = Option(arg) map { _.asInstanceOf[IRiakObject] }
+        true
+      }
+    }
+    
+    def performsWrite = {
+      result
+
+      extractor.argument must beSome.which { obj =>
+        (obj.getKey == testKey && obj.getContentType == testContentType &&
+          obj.getBucket == testBucket && obj.getValueAsString == testStoreObject.stringValue &&
+          obj.getVClockAsString == mockVClock.asString)
+      }
+    }
+
+    def noReturnBody = {
+      result.toOption must beSome.like {
+        case o => o must beNone
+      }
+    }
+
   }
 
   object conflictedFetch extends context {
@@ -220,8 +355,8 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
 
     def rawClient: RawClient
 
-    def createBucket = new ScaliakBucket(
-      rawClient = rawClient,
+    def createBucketWithClient(r: RawClient) =  new ScaliakBucket(
+      rawClient = r,
       name = testBucket,
       allowSiblings = false,
       lastWriteWins = false,
@@ -245,6 +380,30 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
       linkWalkFunction = mock[NamedErlangFunction],
       isSearchable = false
     )
+
+    def createBucket = createBucketWithClient(rawClient)
+  }
+
+  def mockRiakObj(bucket: String, key: String, value: Array[Byte], contentType: String, vClockStr: String): IRiakObject = {
+    val mocked = mock[IRiakObject]
+    val mockedVClock = mock[VClock]
+    mockedVClock.asString returns vClockStr
+    mockedVClock.getBytes returns vClockStr.getBytes
+    mocked.getKey returns key
+    mocked.getValue returns value
+    mocked.getBucket returns bucket
+    mocked.getVClock returns mockedVClock
+    mocked.getContentType returns contentType
+
+    mocked
+  }
+
+  def mockRiakResponse(objects: Array[IRiakObject]) = {
+    val mocked = mock[RiakResponse]
+    mocked.getRiakObjects returns objects
+    mocked.numberOfValues returns objects.length
+
+    mocked
   }
 
 }

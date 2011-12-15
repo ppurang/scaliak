@@ -4,10 +4,10 @@ import scalaz._
 import Scalaz._
 import effects._
 import com.basho.riak.client.query.functions.{NamedFunction, NamedErlangFunction}
-import com.basho.riak.client.raw.{RiakResponse, RawClient, FetchMeta}
 import scala.collection.JavaConverters._
 import com.basho.riak.client.IRiakObject
 import com.basho.riak.client.cap.{UnresolvedConflictException, Quorum}
+import com.basho.riak.client.raw.{StoreMeta, RiakResponse, RawClient, FetchMeta}
 
 /**
  * Created by IntelliJ IDEA.
@@ -38,30 +38,50 @@ class ScaliakBucket(rawClient: RawClient,
                     val notFoundOk: Boolean,
                     val chashKeyFunction: NamedErlangFunction,
                     val linkWalkFunction: NamedErlangFunction,
-                    val isSearchable: Boolean) {
+                    val isSearchable: Boolean) {   
+
 
   def fetch[T](key: String)(implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
-    val emptyFetchMeta = new FetchMeta.Builder().build()
+    val emptyFetchMeta = new FetchMeta.Builder().build() // TODO: support fetch meta arguments
     (rawClient.fetch(name, key, emptyFetchMeta).pure[IO] map {
       response => {
+        // TODO: can refactor this and whats in store to a single function that operators on riak responses
         ((response.getRiakObjects map { converter.read(_) }).toList.toNel map { sibs =>
           resolver.resolve(sibs)
-        }) some { sibNel =>
-          sibNel map { _.some }
-        } none {
-          none.successNel
-        }
+        }).traverse[ScaliakConverter[T]#ReadResult, T](identity(_))
       }
     }) except { t => t.failNel.pure[IO] }
   }
+  
+  //  def store[T](obj: T): IO[ValidationNEL[Throwable, Option[T]]] = {
+  // TODO: actually parametrize this by T, see above
+  def store(obj: ScaliakObject)
+           (implicit converter: ScaliakConverter[ScaliakObject], resolver: ScaliakResolver[ScaliakObject], mutator: ScaliakMutation[ScaliakObject]): IO[ValidationNEL[Throwable, Option[ScaliakObject]]] = {
+    val emptyStoreMeta = new StoreMeta.Builder().build() // TODO: support store meta arguments
+    // TODO: actually need to convert the object here and then get the key
+    fetch(obj.key) map {
+      _ flatMap {
+        mbFetched => {
+          // TODO: actually write the mutated domain object back to a ScaliakObject
+          ((rawClient.store(mutator(mbFetched, obj), emptyStoreMeta).getRiakObjects map { converter.read(_) }).toList.toNel map { sibs =>
+            resolver.resolve(sibs)
+          }).traverse[ScaliakConverter[ScaliakObject]#ReadResult, ScaliakObject](identity(_))
+        }
+      }
+    }
+  }
 
+  // def delete(obj: T): IO[ValidationNEL[Throwable, Unit]]
+  // def delete(key: String): IO[ValidationNEL[Throwable, Unit]]
 }
 
 // TODO: change Throwable to ConversionError
 sealed trait ScaliakConverter[T] {
-  def read: ScaliakObject => ValidationNEL[Throwable, T]
+  type ReadResult[T] = ValidationNEL[Throwable, T]
+  def read: ScaliakObject => ReadResult[T]
 
 //  def write: T => ScaliakObject
+  // def write (T, ScaliakObject) => ScaliakObject?
 
 }
 
@@ -84,6 +104,7 @@ trait ScaliakConverters {
   )
 }
 
+// TODO: CHANGE RESOLVE TO APPLY
 trait ScaliakResolver[T] {
 
   def resolve(siblings: NonEmptyList[ValidationNEL[Throwable, T]]): ValidationNEL[Throwable, T]
@@ -100,3 +121,24 @@ object ScaliakResolver {
   }
 
 }
+
+trait ScaliakMutation[T] {
+  
+  def apply(storedObject: Option[T], newObject: T): T
+  
+}
+
+object ScaliakMutation extends ScaliakMutators {
+  implicit def DefaultMutation[T] = ClobberMutation[T]
+}
+
+trait ScaliakMutators {
+  
+  def newMutation[T](mutate: (Option[T], T) => T) = new ScaliakMutation[T] {
+    def apply(o: Option[T], n: T) = mutate(o, n)
+  }
+  
+  def ClobberMutation[T] = newMutation((o: Option[T], n: T) => n)
+  
+}
+
