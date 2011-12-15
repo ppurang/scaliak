@@ -51,7 +51,10 @@ class ScaliakBucket(rawClient: RawClient,
   //  def store[T](obj: T): IO[ValidationNEL[Throwable, Option[T]]] = {
   // TODO: actually parametrize this by T, see above
   def store(obj: ScaliakObject)
-           (implicit converter: ScaliakConverter[ScaliakObject], resolver: ScaliakResolver[ScaliakObject], mutator: ScaliakMutation[ScaliakObject]): IO[ValidationNEL[Throwable, Option[ScaliakObject]]] = {
+           (implicit
+            converter: ScaliakConverter[ScaliakObject],
+            resolver: ScaliakResolver[ScaliakObject],
+            mutator: ScaliakMutation[ScaliakObject]): IO[ValidationNEL[Throwable, Option[ScaliakObject]]] = {
     val emptyStoreMeta = new StoreMeta.Builder().build() // TODO: support store meta arguments
     // TODO: actually need to convert the object here and then get the key
     fetch(obj.key) map {
