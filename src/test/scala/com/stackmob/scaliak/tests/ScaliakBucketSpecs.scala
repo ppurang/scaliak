@@ -10,8 +10,8 @@ import com.basho.riak.client.IRiakObject
 import org.mockito.stubbing.OngoingStubbing
 import com.basho.riak.client.cap.{UnresolvedConflictException, VClock, Quorum}
 import org.mockito.{ArgumentMatcher, Matchers => MM}
-import com.basho.riak.client.raw.{StoreMeta, RawClient, RiakResponse, FetchMeta}
 import com.stackmob.scaliak._
+import com.basho.riak.client.raw._
 
 /**
  * Created by IntelliJ IDEA.
@@ -116,6 +116,17 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
           "Writes object converted to a PartialScaliakObject then a ScaliakObject"  ! writeExisting.domainObject ^p^
         "Given a mutator other than the default"                                    ^
           "Writes the object as returned from the mutator, converting it afterwards"! writeExisting.domainObjectCustomMutator ^
+                                                                                    endp^
+  "Deleting Data"                                                                   ^
+    "By Key"                                                                        ^
+      "Uses the raw client passing in the bucket name, key and delete meta"         ! deleteByKey.test ^p^
+    "By ScaliakObject"                                                              ^
+      "Deletes the object by its key"                                               ! deleteScaliakObject.test ^p^
+    "By Domain Object"                                                              ^
+      "Deletes the object by its key"                                               ! skipped ^p^
+    "If fetch before delete is true (defaults to false)"                            ^
+      "Uses the raw clients head function to fetch the object"                      ! skipped ^
+      "Adds the returned vClock to the delete meta"                                 ! skipped ^
                                                                                     end
 
 
@@ -129,6 +140,45 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
   val dummyDomainMutation = ScaliakMutation.newMutation[DummyDomainObject] {
     (mbOld, newObj) => {
       new DummyDomainObject(newObj.someField + mutationValueAddition)
+    }
+  }
+
+  object deleteDomainObject extends context {
+    val rawClient = mock[RawClient]
+    val bucket = createBucket
+
+    val obj = new DummyDomainObject(testKey)
+    implicit val converter = dummyDomainConverter
+    lazy val result = bucket.delete(obj).unsafePerformIO
+
+    def test = {
+      result
+      there was one(rawClient).delete(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[DeleteMeta]))
+    }
+  }
+
+  object deleteScaliakObject extends context {
+    val rawClient = mock[RawClient]
+    val bucket = createBucket
+
+    val obj = ScaliakObject(testKey, testBucket, testContentType, mock[VClock], None, "".getBytes)
+    lazy val result = bucket.delete(obj).unsafePerformIO
+
+    def test = {
+      result
+      there was one(rawClient).delete(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[DeleteMeta]))
+    }
+  }
+
+  object deleteByKey extends context {
+    val rawClient = mock[RawClient]
+    val bucket = createBucket
+
+    lazy val result = bucket.delete(testKey).unsafePerformIO
+
+    def test = {
+      result
+      there was one(rawClient).delete(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[DeleteMeta]))
     }
   }
 

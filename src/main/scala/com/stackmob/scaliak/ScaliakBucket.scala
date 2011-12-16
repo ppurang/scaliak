@@ -6,7 +6,7 @@ import effects._
 import com.basho.riak.client.query.functions.{NamedFunction, NamedErlangFunction}
 import scala.collection.JavaConverters._
 import com.basho.riak.client.cap.{UnresolvedConflictException, Quorum}
-import com.basho.riak.client.raw.{StoreMeta, RiakResponse, RawClient, FetchMeta}
+import com.basho.riak.client.raw._
 
 /**
  * Created by IntelliJ IDEA.
@@ -71,7 +71,16 @@ class ScaliakBucket(rawClient: RawClient,
   }
 
   // def delete(obj: T): IO[ValidationNEL[Throwable, Unit]]
-  // def delete(key: String): IO[ValidationNEL[Throwable, Unit]]
+  def delete(key: String): IO[Validation[Throwable, Unit]] = {
+    val emptyDeleteMeta = new DeleteMeta.Builder().build()
+    (for {
+      _ <- rawClient.delete(name, key, emptyDeleteMeta).pure[IO]
+    } yield ().success[Throwable]) except { t => t.fail[Unit].pure[IO] }
+  }
+  
+  def delete[T](obj: T)(implicit converter: ScaliakConverter[T]): IO[Validation[Throwable, Unit]] = {
+    delete(converter.write(obj)._key)
+  }
 
   private def rawFetch(key: String) = {
     val emptyFetchMeta = new FetchMeta.Builder().build() // TODO: support fetch meta arguments
