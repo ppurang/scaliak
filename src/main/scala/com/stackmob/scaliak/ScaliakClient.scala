@@ -7,6 +7,7 @@ import com.basho.riak.client.raw.RawClient
 import java.io.IOException
 import com.basho.riak.client.http.response.RiakIORuntimeException
 import com.basho.riak.client.query.functions.{NamedErlangFunction, NamedFunction}
+import scala.collection.JavaConversions._
 
 /**
  * Created by IntelliJ IDEA.
@@ -17,6 +18,10 @@ import com.basho.riak.client.query.functions.{NamedErlangFunction, NamedFunction
 
 
 class ScaliakClient(rawClient: RawClient) {
+  
+  def listBuckets: IO[Set[String]] = {
+    rawClient.listBuckets().pure[IO] map { _.toSet }
+  }
 
   def bucket(name: String): IO[Validation[Throwable, ScaliakBucket]] = {
     rawClient.fetchBucket(name).pure[IO] map { b =>

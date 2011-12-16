@@ -11,6 +11,7 @@ import com.basho.riak.client.raw.http.HTTPClientAdapter
 import java.util.LinkedList
 import com.basho.riak.client.query.functions.{NamedFunction, NamedErlangFunction}
 import com.basho.riak.client.cap.Quorum
+import com.basho.riak.client.RiakException
 
 /**
  * Created by IntelliJ IDEA.
@@ -61,6 +62,11 @@ class ScaliakClientSpecs extends Specification with Mockito { def is = args(sequ
         "the returned bucket has the correct search value"                          ! { bucket must beSome.which(_.isSearchable == searchVal) } ^                                                                            p^
       "if the IO action throws"                                                     ^
         "returns a failure containing the exception"                                ! fetchFailure ^
+                                                                                    p^p^
+    "Listing Buckets"                                                               ^
+      "returns an empty set if the raw client returns empty set"                    ! listBucketsEmpty ^
+      "returns a Scala Set of the Java Set returned by raw client"                  ! listBucketsNonEmpty ^
+      "does not setup exception handling for the IO action"                         ! listBucketsException ^
                                                                                     end
 
   // TODO:
@@ -160,6 +166,25 @@ class ScaliakClientSpecs extends Specification with Mockito { def is = args(sequ
     rawClient.fetchBucket(bucketName) throws (new IOException)
     val notBucket = client.bucket(bucketName).unsafePerformIO.either
     notBucket must beLeft
+  }
+
+  def listBucketsEmpty = {
+    rawClient.listBuckets() returns (new java.util.HashSet[String]())
+    client.listBuckets.unsafePerformIO must beEmpty
+  }
+  
+  def listBucketsNonEmpty = {
+    val s = new java.util.HashSet[String]()
+    s.add("bucketname")
+    s.add("bucketname2")
+    rawClient.listBuckets() returns s
+    
+    client.listBuckets.unsafePerformIO must haveTheSameElementsAs("bucketname" :: "bucketname2" :: Nil)
+  }
+  
+  def listBucketsException = {
+    rawClient.listBuckets() throws new NullPointerException
+    client.listBuckets.unsafePerformIO must throwA[NullPointerException]
   }
 
 }
