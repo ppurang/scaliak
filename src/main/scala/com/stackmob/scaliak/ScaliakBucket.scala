@@ -5,7 +5,6 @@ import Scalaz._
 import effects._
 import com.basho.riak.client.query.functions.{NamedFunction, NamedErlangFunction}
 import scala.collection.JavaConverters._
-import com.basho.riak.client.IRiakObject
 import com.basho.riak.client.cap.{UnresolvedConflictException, Quorum}
 import com.basho.riak.client.raw.{StoreMeta, RiakResponse, RawClient, FetchMeta}
 
