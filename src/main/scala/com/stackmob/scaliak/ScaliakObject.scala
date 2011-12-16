@@ -21,7 +21,7 @@ case class ScaliakObject(key: String,
                          vTag: Option[String],
                          bytes: Array[Byte]) {
 
-  val vClockString = vClock.asString
+  def vClockString = vClock.asString
 
   // TODO: probably should move, leaving for now since its used in a bunch of places
   def getBytes = bytes
