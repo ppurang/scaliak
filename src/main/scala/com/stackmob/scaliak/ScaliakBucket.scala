@@ -57,7 +57,7 @@ class ScaliakBucket(rawClient: RawClient,
     // Instead force domain objects to implement a simple
     // interface exposing there key
     val key = converter.write(obj)._key
-    for {
+    (for {
       resp <- rawFetch(key)
       fetchRes <- riakResponseToResult(resp).pure[IO]
     } yield {
@@ -67,7 +67,7 @@ class ScaliakBucket(rawClient: RawClient,
           riakResponseToResult(rawClient.store(objToStore, emptyStoreMeta))
         }
       }
-    }
+    }) except { t => t.failNel.pure[IO] }
   }
 
   // def delete(obj: T): IO[ValidationNEL[Throwable, Unit]]
