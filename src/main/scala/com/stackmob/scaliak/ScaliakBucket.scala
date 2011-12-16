@@ -41,40 +41,51 @@ class ScaliakBucket(rawClient: RawClient,
                     val isSearchable: Boolean) {   
 
 
-  def fetch[T](key: String)(implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
-    val emptyFetchMeta = new FetchMeta.Builder().build() // TODO: support fetch meta arguments
-    (rawClient.fetch(name, key, emptyFetchMeta).pure[IO] map {
+  def fetch[T](key: String)
+              (implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
+    (rawFetch(key) map {
       riakResponseToResult(_)
     }) except { t => t.failNel.pure[IO] }
   }
-  
-  //  def store[T](obj: T): IO[ValidationNEL[Throwable, Option[T]]] = {
-  // TODO: actually parametrize this by T, see above
-  def store(obj: ScaliakObject)
-           (implicit
-            converter: ScaliakConverter[ScaliakObject],
-            resolver: ScaliakResolver[ScaliakObject],
-            mutator: ScaliakMutation[ScaliakObject]): IO[ValidationNEL[Throwable, Option[ScaliakObject]]] = {
+
+  def store[T](obj: T)(implicit
+                       converter: ScaliakConverter[T],
+                       resolver: ScaliakResolver[T],
+                       mutator: ScaliakMutation[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
     val emptyStoreMeta = new StoreMeta.Builder().build() // TODO: support store meta arguments
-    // TODO: actually need to convert the object here and then get the key
-    fetch(obj.key) map {
-      _ flatMap {
+    //TODO: need to not convert the object here
+    // it causes two calls to converter.write.
+    // Instead force domain objects to implement a simple
+    // interface exposing there key
+    val key = converter.write(obj)._key
+    for {
+      resp <- rawFetch(key)
+      fetchRes <- riakResponseToResult(resp).pure[IO]
+    } yield {
+      fetchRes flatMap {
         mbFetched => {
-          // TODO: actually write the mutated domain object back to a ScaliakObject
-          riakResponseToResult(rawClient.store(mutator(mbFetched, obj), emptyStoreMeta))
+          val objToStore = converter.write(mutator(mbFetched, obj)).asRiak(name, resp.getVclock)
+          riakResponseToResult(rawClient.store(objToStore, emptyStoreMeta))
         }
       }
     }
   }
 
-  def riakResponseToResult[T](r: RiakResponse)(implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): ValidationNEL[Throwable, Option[T]] = {
+  // def delete(obj: T): IO[ValidationNEL[Throwable, Unit]]
+  // def delete(key: String): IO[ValidationNEL[Throwable, Unit]]
+
+  private def rawFetch(key: String) = {
+    val emptyFetchMeta = new FetchMeta.Builder().build() // TODO: support fetch meta arguments
+    rawClient.fetch(name, key, emptyFetchMeta).pure[IO]
+  }
+
+  private def riakResponseToResult[T](r: RiakResponse)
+                             (implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): ValidationNEL[Throwable, Option[T]] = {
     ((r.getRiakObjects map { converter.read(_) }).toList.toNel map { sibs =>
       resolver(sibs)
     }).traverse[ScaliakConverter[T]#ReadResult, T](identity(_))
   }
 
-  // def delete(obj: T): IO[ValidationNEL[Throwable, Unit]]
-  // def delete(key: String): IO[ValidationNEL[Throwable, Unit]]
 }
 
 // TODO: change Throwable to ConversionError
@@ -85,6 +96,8 @@ sealed trait ScaliakConverter[T] {
 //  def write: T => ScaliakObject
   // def write (T, ScaliakObject) => ScaliakObject?
 
+  def write: T => PartialScaliakObject
+
 }
 
 
@@ -94,15 +107,16 @@ object ScaliakConverter extends ScaliakConverters {
 
 trait ScaliakConverters {
 
-  def newConverter[T](r: ScaliakObject => ValidationNEL[Throwable, T]) = new ScaliakConverter[T] {
-
+  def newConverter[T](r: ScaliakObject => ValidationNEL[Throwable, T], 
+                      w: T => PartialScaliakObject) = new ScaliakConverter[T] {
     def read = r
-
+    def write = w
   }
   
   lazy val PassThroughConverter = newConverter[ScaliakObject](
     (o =>
-      o.successNel[Throwable])
+      o.successNel[Throwable]),
+    (o => PartialScaliakObject(o.key, o.bytes, o.contentType.some, o.vTag))
   )
 }
 

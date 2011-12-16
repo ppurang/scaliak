@@ -1,8 +1,11 @@
 package com.stackmob.scaliak
 
+import scalaz._
+import Scalaz._
 import com.basho.riak.client.cap.VClock
 import com.basho.riak.client.IRiakObject
 import com.basho.riak.client.builders.RiakObjectBuilder
+import com.basho.riak.client.http.util.{Constants => RiakConstants}
 
 /**
  * Created by IntelliJ IDEA.
@@ -47,4 +50,31 @@ object ScaliakObject {
     obj.vTag foreach { base withVtag  _ }
     base.build()
   }
+}
+
+sealed trait PartialScaliakObject {
+  def _key: String
+  def _vTag: Option[String]
+  def _bytes: Array[Byte]
+  def _contentType: Option[String]
+
+  def asRiak(bucket: String, vClock: VClock): IRiakObject = {
+    (RiakObjectBuilder.newBuilder(bucket, _key)
+      withVClock vClock
+      withContentType (_contentType | RiakConstants.CTYPE_TEXT_UTF8)
+      withValue _bytes
+      withVtag (_vTag | null)).build()
+
+  }
+}
+
+object PartialScaliakObject {
+  
+  def apply(key: String, value: Array[Byte], contentType: Option[String] = None, vTag: Option[String] = None) = new PartialScaliakObject {
+    def _key = key
+    def _bytes = value
+    def _contentType = contentType
+    def _vTag = vTag
+  }
+  
 }

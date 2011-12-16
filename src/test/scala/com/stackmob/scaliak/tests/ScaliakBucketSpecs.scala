@@ -88,7 +88,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
   "Writing Data"                                                                    ^
     "With No Conversion"                                                            ^
       "When the Key Being Fetched Does Not Exist"                                   ^
-        """Given the default "Clobber Mutator""""                                   ^
+        """Given the default "Clobber Mutation""""                                  ^
           "Writes the ScaliakObject as passed in (converted to an IRiakObject)"     ! writeMissing.performsWrite ^
           "returns Success(None) when return body is false (default)"               ! writeMissing.noReturnBody ^
           "returns successfully with the stored object as a ScaliakObject instance" ! writeMissingReturnBody.noConversion ^
@@ -103,9 +103,34 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
           "returns successfully with the stored object as a ScaliakObject instance" ! writeExistingReturnBody.noConversion ^
                                                                                     p^
         "Given a mutator other than the default"                                    ^
-          "Writes the ScaliakObject as returned from the mutator"                   ! skipped ^
+          "Writes the ScaliakObject as returned from the mutator"                   ! writeExisting.customMutator ^
+                                                                                    p^p^p^
+    "With Conversion"                                                               ^
+      "When the Key Being Fetched Does Not Exist"                                   ^
+        """Given the default "Clobber Mutation""""                                  ^
+          "Writes object converted to a PartialScaliakObject then a ScaliakObject"  ! writeMissing.domainObject ^p^
+        "Given a mutator other than the default"                                    ^
+          "Writes the object as returned from the mutator, converting it afterwards"! writeMissing.domainObjectCustomMutator ^p^p^
+      "When the Key Being Fetched Exists"                                           ^
+        """Given the default "Clobber Mutation""""                                  ^
+          "Writes object converted to a PartialScaliakObject then a ScaliakObject"  ! writeExisting.domainObject ^p^
+        "Given a mutator other than the default"                                    ^
+          "Writes the object as returned from the mutator, converting it afterwards"! writeExisting.domainObjectCustomMutator ^
                                                                                     end
 
+
+  class DummyDomainObject(val someField: String)
+  val dummyWriteVal = "dummy"
+  val dummyDomainConverter = ScaliakConverter.newConverter[DummyDomainObject](
+    o => (new DummyDomainObject(o.key)).successNel[Throwable],
+    o => PartialScaliakObject(o.someField, dummyWriteVal.getBytes)
+  )
+  val mutationValueAddition = "abc"
+  val dummyDomainMutation = ScaliakMutation.newMutation[DummyDomainObject] {
+    (mbOld, newObj) => {
+      new DummyDomainObject(newObj.someField + mutationValueAddition)
+    }
+  }
 
   object writeExistingReturnBody extends writeBase {
     val mock2VClockStr = "vclock2"
@@ -114,6 +139,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
 
     val mock1VClockStr = "vclock1"
     val mockFetchObj = mockRiakObj(testBucket, testKey, "abc".getBytes, testContentType, mock1VClockStr)
+    val mockFetchVClockStr = mock1VClockStr
     rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockRiakResponse(Array(mockFetchObj))
 
     val extractor = new MockitoExtractor
@@ -131,6 +157,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
     val mock2VClockStr = "vclock2"
     val mockStoreObj = mockRiakObj(testBucket, testKey, testStoreObject.getBytes, testContentType, mock2VClockStr)
     val mockStoreResponse = mockRiakResponse(Array(mockStoreObj))
+    val mockFetchVClockStr = ""
     rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockRiakResponse(Array())
 
     val extractor = new MockitoExtractor
@@ -150,17 +177,75 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
     val mockRiakObj1 = mockRiakObj(testBucket, testKey, mock1Bytes, testContentType, mock1VClockStr)
 
     val mockResponse = mockRiakResponse(Array(mockRiakObj1))
+    mockResponse.getVclock returns mockRiakObj1.getVClock
+    val mockFetchVClockStr = mockRiakObj1.getVClock.asString
 
     rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
 
     val extractor = new MockitoExtractor
     val mockStoreResponse = mockRiakResponse(Array())
     rawClient.store(MM.argThat(extractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse // TODO: these should not return null
+
+    def customMutator = {
+      val newRawClient = mock[RawClient]
+      val newBucket = createBucketWithClient(newRawClient)
+      newRawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
+      val newExtractor = new MockitoExtractor
+      newRawClient.store(MM.argThat(newExtractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
+
+      var fakeValue: String = "fail"
+      implicit val mutator = ScaliakMutation.newMutation[ScaliakObject] {
+        (o: Option[ScaliakObject], n: ScaliakObject) => {
+          fakeValue = "custom"
+          n.copy(bytes = fakeValue.getBytes)
+        }
+      }
+      newBucket.store(testStoreObject).unsafePerformIO
+
+      newExtractor.argument must beSome.like {
+        case obj => obj.getValueAsString must_== fakeValue
+      }
+    }
+
+    def domainObject = {
+      val newRawClient = mock[RawClient]
+      val newBucket = createBucketWithClient(newRawClient)
+      newRawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
+
+      val newExtractor = new MockitoExtractor
+      newRawClient.store(MM.argThat(newExtractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
+
+      implicit val converter = dummyDomainConverter
+      newBucket.store(new DummyDomainObject(testKey)).unsafePerformIO
+      
+      newExtractor.argument must beSome.like {
+        case o => o.getValueAsString must beEqualTo(dummyWriteVal)
+      }
+    }
+
+    def domainObjectCustomMutator = {
+      val newRawClient = mock[RawClient]
+      val newBucket = createBucketWithClient(newRawClient)
+      newRawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
+
+      val newExtractor = new MockitoExtractor
+      newRawClient.store(MM.argThat(newExtractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
+
+      implicit val converter = dummyDomainConverter
+      implicit val mutation = dummyDomainMutation
+      newBucket.store(new DummyDomainObject(testKey)).unsafePerformIO
+
+      newExtractor.argument must beSome.like {
+        case o => o.getKey must beEqualTo(testKey + mutationValueAddition)
+      }
+    }
   }
 
 
   object writeMissing extends writeBase {
     val mockResponse = mockRiakResponse(Array())
+    mockResponse.getVclock returns null
+    val mockFetchVClockStr = ""
     rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
 
     val extractor = new MockitoExtractor
@@ -188,11 +273,45 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
         case obj => obj.getValueAsString must_== fakeValue
       }
     }
+
+    def domainObject = {
+      val newRawClient = mock[RawClient]
+      val newBucket = createBucketWithClient(newRawClient)
+      newRawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
+
+      val newExtractor = new MockitoExtractor
+      newRawClient.store(MM.argThat(newExtractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
+
+      implicit val converter = dummyDomainConverter
+      newBucket.store(new DummyDomainObject(testKey)).unsafePerformIO
+
+      newExtractor.argument must beSome.like {
+        case o => o.getValueAsString must beEqualTo(dummyWriteVal)
+      }
+    }
+
+    def domainObjectCustomMutator = {
+      val newRawClient = mock[RawClient]
+      val newBucket = createBucketWithClient(newRawClient)
+      newRawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
+
+      val newExtractor = new MockitoExtractor
+      newRawClient.store(MM.argThat(newExtractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
+
+      implicit val converter = dummyDomainConverter
+      implicit val mutation = dummyDomainMutation
+      newBucket.store(new DummyDomainObject(testKey)).unsafePerformIO
+
+      newExtractor.argument must beSome.like {
+        case o => o.getKey must beEqualTo(testKey + mutationValueAddition)
+      }
+    }
   }
 
   trait writeBase extends context {
     val rawClient = mock[RawClient]
     val bucket = createBucket
+    def mockFetchVClockStr: String
     def extractor: MockitoExtractor
 
     class CustomMutation extends ScaliakMutation[ScaliakObject] {
@@ -232,7 +351,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
       extractor.argument must beSome.which { obj =>
         (obj.getKey == testKey && obj.getContentType == testContentType &&
           obj.getBucket == testBucket && obj.getValueAsString == testStoreObject.stringValue &&
-          obj.getVClockAsString == mockVClock.asString)
+          ~(Option(obj.getVClockAsString)) == mockFetchVClockStr) // in this last step we are checking if the vclock is null by using string Zero value when it is
       }
     }
 
@@ -315,11 +434,6 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
     def tContentType = {
       result must beSome.which { _.contentType == testContentType }
     }
-
-    class DummyDomainObject(val someField: String)
-    val dummyDomainConverter = ScaliakConverter.newConverter[DummyDomainObject](
-      o => (new DummyDomainObject(o.key)).successNel[Throwable]
-    )
 
     def testConversionExplicit = {
       // this will fail unti you start explicitly passing a resolver
