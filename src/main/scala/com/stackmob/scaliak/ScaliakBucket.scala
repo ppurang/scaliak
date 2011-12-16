@@ -92,9 +92,6 @@ sealed trait ScaliakConverter[T] {
   type ReadResult[T] = ValidationNEL[Throwable, T]
   def read: ScaliakObject => ReadResult[T]
 
-//  def write: T => ScaliakObject
-  // def write (T, ScaliakObject) => ScaliakObject?
-
   def write: T => PartialScaliakObject
 
 }
