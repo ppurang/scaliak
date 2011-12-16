@@ -70,16 +70,20 @@ class ScaliakBucket(rawClient: RawClient,
     }) except { t => t.failNel.pure[IO] }
   }
 
-  // def delete(obj: T): IO[ValidationNEL[Throwable, Unit]]
-  def delete(key: String): IO[Validation[Throwable, Unit]] = {
-    val emptyDeleteMeta = new DeleteMeta.Builder().build()
-    (for {
-      _ <- rawClient.delete(name, key, emptyDeleteMeta).pure[IO]
-    } yield ().success[Throwable]) except { t => t.fail[Unit].pure[IO] }
+  def delete[T](obj: T, fetchBefore: Boolean = false)
+               (implicit converter: ScaliakConverter[T]): IO[Validation[Throwable, Unit]] = {
+    deleteByKey(converter.write(obj)._key, fetchBefore)
   }
-  
-  def delete[T](obj: T)(implicit converter: ScaliakConverter[T]): IO[Validation[Throwable, Unit]] = {
-    delete(converter.write(obj)._key)
+
+  def deleteByKey(key: String, fetchBefore: Boolean = false): IO[Validation[Throwable, Unit]] = {    
+    val deleteMetaBuilder = new DeleteMeta.Builder()    
+    val emptyFetchMeta = new FetchMeta.Builder().build()    
+    val mbFetchHead = if (fetchBefore) rawClient.head(name, key, emptyFetchMeta).pure[Option].pure[IO] else none.pure[IO]
+    (for {
+      mbHeadResponse <- mbFetchHead
+      deleteMeta <- prepareDeleteMeta(mbHeadResponse, deleteMetaBuilder).pure[IO]
+      _ <- rawClient.delete(name, key, deleteMeta).pure[IO]
+    } yield ().success[Throwable]) except { t => t.fail[Unit].pure[IO] }
   }
 
   private def rawFetch(key: String) = {
@@ -92,6 +96,14 @@ class ScaliakBucket(rawClient: RawClient,
     ((r.getRiakObjects map { converter.read(_) }).toList.toNel map { sibs =>
       resolver(sibs)
     }).traverse[ScaliakConverter[T]#ReadResult, T](identity(_))
+  }
+
+  private def prepareDeleteMeta(mbResponse: Option[RiakResponse], deleteMetaBuilder: DeleteMeta.Builder) = {
+    val mbPrepared = for {
+      response <- mbResponse
+      vClock <- Option(response.getVclock)
+    } yield deleteMetaBuilder.vclock(vClock)
+    (mbPrepared | deleteMetaBuilder).build
   }
 
 }

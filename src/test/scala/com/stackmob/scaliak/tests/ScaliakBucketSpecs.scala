@@ -125,8 +125,8 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
     "By Domain Object"                                                              ^
       "Deletes the object by its key"                                               ! deleteDomainObject.test ^p^
     "If fetch before delete is true (defaults to false)"                            ^
-      "Uses the raw clients head function to fetch the object"                      ! skipped ^
-      "Adds the returned vClock to the delete meta"                                 ! skipped ^
+      "Uses the raw clients head function to fetch the object"                      ! skipped ^ //deleteWithFetchBefore.testCallsHead ^
+      "Adds the returned vClock to the delete meta"                                 ! deleteWithFetchBefore.testAddsVclock ^
                                                                                     end
 
 
@@ -140,6 +140,47 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
   val dummyDomainMutation = ScaliakMutation.newMutation[DummyDomainObject] {
     (mbOld, newObj) => {
       new DummyDomainObject(newObj.someField + mutationValueAddition)
+    }
+  }
+
+  object deleteWithFetchBefore extends context {
+    val rawClient = mock[RawClient]
+    val bucket = createBucket
+
+    class DeleteMetaArgExtractor extends ArgumentMatcher[DeleteMeta] {
+      var argument: Option[DeleteMeta] = None
+
+      def matches(arg: AnyRef): Boolean = {
+        argument = Option(arg) map { _.asInstanceOf[DeleteMeta] }
+        true
+      }
+    }
+    
+    lazy val result = bucket.deleteByKey(testKey, fetchBefore = true).unsafePerformIO
+
+    val extractor = new DeleteMetaArgExtractor
+    (rawClient.delete(MM.eq(testBucket), MM.eq(testKey), MM.argThat(extractor))
+      throws new NullPointerException("can't stub void methods, tests don't depend on the result anyway"))
+
+    val mockHeadVClock = mock[VClock]
+    mockHeadVClock.asString returns "fetched"
+    val mockHeadResponse = mockRiakResponse(Array())    
+    mockHeadResponse.getVclock returns mockHeadVClock
+    
+    rawClient.head(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockHeadResponse
+    
+    def testCallsHead = {
+      result 
+      
+      there was one(rawClient).head(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta]))
+    }
+    
+    def testAddsVclock = {
+      result
+      
+      extractor.argument must beSome.like {
+        case meta => meta.getVclock.asString must beEqualTo("fetched")
+      }
     }
   }
 
@@ -174,7 +215,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
     val rawClient = mock[RawClient]
     val bucket = createBucket
 
-    lazy val result = bucket.delete(testKey).unsafePerformIO
+    lazy val result = bucket.deleteByKey(testKey).unsafePerformIO
 
     def test = {
       result
@@ -192,7 +233,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
     val mockFetchVClockStr = mock1VClockStr
     rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockRiakResponse(Array(mockFetchObj))
 
-    val extractor = new MockitoExtractor
+    val extractor = new IRiakObjExtractor
     rawClient.store(MM.argThat(extractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
 
     def noConversion = {
@@ -210,7 +251,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
     val mockFetchVClockStr = ""
     rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockRiakResponse(Array())
 
-    val extractor = new MockitoExtractor
+    val extractor = new IRiakObjExtractor
     rawClient.store(MM.argThat(extractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
 
     def noConversion = {
@@ -232,7 +273,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
 
     rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
 
-    val extractor = new MockitoExtractor
+    val extractor = new IRiakObjExtractor
     val mockStoreResponse = mockRiakResponse(Array())
     rawClient.store(MM.argThat(extractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse // TODO: these should not return null
 
@@ -240,7 +281,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
       val newRawClient = mock[RawClient]
       val newBucket = createBucketWithClient(newRawClient)
       newRawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
-      val newExtractor = new MockitoExtractor
+      val newExtractor = new IRiakObjExtractor
       newRawClient.store(MM.argThat(newExtractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
 
       var fakeValue: String = "fail"
@@ -262,7 +303,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
       val newBucket = createBucketWithClient(newRawClient)
       newRawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
 
-      val newExtractor = new MockitoExtractor
+      val newExtractor = new IRiakObjExtractor
       newRawClient.store(MM.argThat(newExtractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
 
       implicit val converter = dummyDomainConverter
@@ -278,7 +319,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
       val newBucket = createBucketWithClient(newRawClient)
       newRawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
 
-      val newExtractor = new MockitoExtractor
+      val newExtractor = new IRiakObjExtractor
       newRawClient.store(MM.argThat(newExtractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
 
       implicit val converter = dummyDomainConverter
@@ -298,7 +339,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
     val mockFetchVClockStr = ""
     rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
 
-    val extractor = new MockitoExtractor
+    val extractor = new IRiakObjExtractor
     val mockStoreResponse = mockRiakResponse(Array())
     rawClient.store(MM.argThat(extractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
     
@@ -307,7 +348,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
       val newRawClient = mock[RawClient]
       val newBucket = createBucketWithClient(newRawClient)
       newRawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
-      val newExtractor = new MockitoExtractor      
+      val newExtractor = new IRiakObjExtractor
       newRawClient.store(MM.argThat(newExtractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
 
       var fakeValue: String = "fail"
@@ -329,7 +370,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
       val newBucket = createBucketWithClient(newRawClient)
       newRawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
 
-      val newExtractor = new MockitoExtractor
+      val newExtractor = new IRiakObjExtractor
       newRawClient.store(MM.argThat(newExtractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
 
       implicit val converter = dummyDomainConverter
@@ -345,7 +386,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
       val newBucket = createBucketWithClient(newRawClient)
       newRawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResponse
 
-      val newExtractor = new MockitoExtractor
+      val newExtractor = new IRiakObjExtractor
       newRawClient.store(MM.argThat(newExtractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
 
       implicit val converter = dummyDomainConverter
@@ -362,7 +403,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
     val rawClient = mock[RawClient]
     val bucket = createBucket
     def mockFetchVClockStr: String
-    def extractor: MockitoExtractor
+    def extractor: IRiakObjExtractor
 
     class CustomMutation extends ScaliakMutation[ScaliakObject] {
       val fakeValue = "custom"
@@ -386,7 +427,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
       "".getBytes
     )
 
-    class MockitoExtractor extends ArgumentMatcher[IRiakObject] {
+    class IRiakObjExtractor extends ArgumentMatcher[IRiakObject] {
       var argument: Option[IRiakObject] = None
 
       def matches(arg: AnyRef): Boolean = {
