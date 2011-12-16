@@ -123,7 +123,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
     "By ScaliakObject"                                                              ^
       "Deletes the object by its key"                                               ! deleteScaliakObject.test ^p^
     "By Domain Object"                                                              ^
-      "Deletes the object by its key"                                               ! skipped ^p^
+      "Deletes the object by its key"                                               ! deleteDomainObject.test ^p^
     "If fetch before delete is true (defaults to false)"                            ^
       "Uses the raw clients head function to fetch the object"                      ! skipped ^
       "Adds the returned vClock to the delete meta"                                 ! skipped ^
