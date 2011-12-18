@@ -4,8 +4,6 @@ package example
 import scalaz._
 import Scalaz._
 import effects._ // not necessary unless you want to take advantage of IO monad
-import com.basho.riak.client.raw.http.HTTPClientAdapter
-import com.basho.riak.client.http.RiakClient
 
 /**
  * Created by IntelliJ IDEA.
@@ -16,7 +14,8 @@ import com.basho.riak.client.http.RiakClient
 
 object BasicUsage extends App {
 
-  val client = new ScaliakClient(new HTTPClientAdapter(new RiakClient("http://localhost:8091/riak")))
+  val client = Scaliak.httpClient("http://localhost:8091/riak")
+  client.generateAndSetClientId() // always calls this or setClientId(Array[Byte]) after creating a client
 
   val bucket = client.bucket("scaliak-example").unsafePerformIO match {
     case Success(b) => b

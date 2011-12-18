@@ -8,8 +8,9 @@ Scaliak is currently feature incomplete against the original High-Level Riak Jav
 
 The following is supported:
 
-  - creating a client for a Riak RawClient
-  - Fetching buckets
+  - creating a client (either via raw client or w/ the http convenience method)
+  - client ids
+  - Fetching, Updating Buckets buckets
   - Fetching, Storing and Deleting Data
   - Domain Object Conversion
   - Mutation
@@ -17,9 +18,8 @@ The following is supported:
 
 The following is missing:
 
-  - Convenience methods for creating clients
+  - Convenience methods for creating pbc or default http clients
   - ScaliakObject is not 1-1 with IRiakObject
-  - bucket operations (create, update)
   - Cannot specify fetch meta
   - Cannot specify store meta
   - Cannot specify delete meta
@@ -65,12 +65,11 @@ package example
 import scalaz._
 import Scalaz._
 import effects._ // not necessary unless you want to take advantage of IO monad
-import com.basho.riak.client.raw.http.HTTPClientAdapter
-import com.basho.riak.client.http.RiakClient
 
 object BasicUsage extends App {
 
-  val client = new ScaliakClient(new HTTPClientAdapter(new RiakClient("http://localhost:8091/riak")))
+  val client = Scaliak.httpClient("http://localhost:8091/riak")
+  client.generateAndSetClientId() // always calls this or setClientId(Array[Byte]) after creating a client
 
   val bucket = client.bucket("scaliak-example").unsafePerformIO match {
     case Success(b) => b
@@ -136,8 +135,6 @@ package example
 import scalaz._
 import Scalaz._
 import effects._ // not necessary unless you want to take advantage of IO monad
-import com.basho.riak.client.raw.http.HTTPClientAdapter
-import com.basho.riak.client.http.RiakClient
 
 class SomeDomainObject(val key: String, val value: String)
 object SomeDomainObject {
@@ -152,7 +149,8 @@ object SomeDomainObject {
 object DomainObjects extends App {
   import SomeDomainObject._ // put the implicits at a higher priority scope
 
-  val client = new ScaliakClient(new HTTPClientAdapter(new RiakClient("http://localhost:8091/riak")))
+  val client = Scaliak.httpClient("http://localhost:8091/riak")
+  client.generateAndSetClientId()
 
   val bucket = client.bucket("scaliak-example").unsafePerformIO match {
     case Success(b) => b
