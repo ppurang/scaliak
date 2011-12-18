@@ -28,6 +28,8 @@ class ScaliakClient(rawClient: RawClient) {
 
   def bucket(name: String,
              updateBucket: Boolean = false,
+             allowSiblings: Option[Boolean] = None,
+             lastWriteWins: Option[Boolean] = None,
              nVal: Option[Int] = None,
              r: Option[Int] = None,
              w: Option[Int] = None,
@@ -40,7 +42,8 @@ class ScaliakClient(rawClient: RawClient) {
     val fetchAction = rawClient.fetchBucket(name).pure[IO]
     val fullAction = if (updateBucket) {
       rawClient.updateBucket(name,
-        createUpdateBucketProps(nVal, r, w, rw, dw, pr, pw, basicQuorum, notFoundOk)).pure[IO] >>=| fetchAction
+        createUpdateBucketProps(allowSiblings, lastWriteWins, nVal, r,
+          w, rw, dw, pr, pw, basicQuorum, notFoundOk)).pure[IO] >>=| fetchAction
     } else fetchAction
 
     (for {      
@@ -104,7 +107,9 @@ class ScaliakClient(rawClient: RawClient) {
     )
   }
 
-  private def createUpdateBucketProps(nVal: Option[Int] = None,
+  private def createUpdateBucketProps(allowSiblings: Option[Boolean] = None,
+                                      lastWriteWins: Option[Boolean] = None,
+                                      nVal: Option[Int] = None,
                                       r: Option[Int] = None,
                                       w: Option[Int] = None,
                                       rw: Option[Int] = None,
@@ -114,6 +119,8 @@ class ScaliakClient(rawClient: RawClient) {
                                       basicQuorum: Option[Boolean] = None,
                                       notFoundOk: Option[Boolean] = None) = {
     val builder = new BucketPropertiesBuilder
+    allowSiblings foreach builder.allowSiblings
+    lastWriteWins foreach builder.lastWriteWins
     nVal foreach builder.nVal
     r foreach builder.r
     w foreach builder.w
