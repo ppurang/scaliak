@@ -15,6 +15,7 @@ import com.basho.riak.client.RiakException
 import util.MockitoArgumentExtractor
 import com.basho.riak.client.bucket.BucketProperties
 import org.mockito.{Matchers => MM}
+import com.basho.riak.client.raw.Transport
 
 /**
  * Created by IntelliJ IDEA.
@@ -91,12 +92,12 @@ class ScaliakClientSpecs extends Specification with Mockito { def is = args(sequ
       "returns a none if a client id has not been set"                              ! getMissingClientId ^
                                                                                     endp^
   "Getting the underlying transport"                                                ^
-    "returns HTTP for HTTP Client"                                                  ! skipped ^
-    "returns PBC for Protobufs client"                                              ! skipped ^
-    "isHTTP returns true if client is HTTP"                                         ! skipped ^
-    "isHTTP returns false if client is PBC"                                         ! skipped ^
-    "isPBC returns true if client is PBC"                                           ! skipped ^
-    "isPBC returns false if client is HTTP"                                         ! skipped ^
+    "returns HTTP for HTTP Client"                                                  ! transportHttp ^
+    "returns PBC for Protobufs client"                                              ! transportPbc ^
+    "isHTTP returns true if client is HTTP"                                         ! isHttpHttp ^
+    "isHTTP returns false if client is PBC"                                         ! isHttpPbc ^
+    "isPBC returns true if client is PBC"                                           ! isPbPbc ^
+    "isPBC returns false if client is HTTP"                                         ! isPbHttp ^
                                                                                     endp^
   "Pinging Riak"                                                                    ^
     "returns true if no exception is thrown by the raw client"                      ! skipped ^
@@ -274,6 +275,36 @@ class ScaliakClientSpecs extends Specification with Mockito { def is = args(sequ
   def getMissingClientId = {
     rawClient.getClientId returns null
     client.clientId must beNone
+  }
+  
+  def transportHttp = {
+    rawClient.getTransport returns Transport.HTTP
+    client.transport must beEqualTo(Transport.HTTP)
+  }
+  
+  def transportPbc = {
+    rawClient.getTransport returns Transport.PB
+    client.transport must beEqualTo(Transport.PB)
+  }
+
+  def isHttpHttp = {
+    rawClient.getTransport returns Transport.HTTP
+    client.isHttp must beTrue
+  }
+
+  def isHttpPbc = {
+    rawClient.getTransport returns Transport.PB
+    client.isHttp must beFalse
+  }
+
+  def isPbPbc = {
+    rawClient.getTransport returns Transport.PB
+    client.isPb must beTrue
+  }
+
+  def isPbHttp = {
+    rawClient.getTransport returns Transport.HTTP
+    client.isPb must beFalse
   }
 
 }

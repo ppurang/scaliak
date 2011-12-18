@@ -10,6 +10,7 @@ import com.basho.riak.client.query.functions.{NamedErlangFunction, NamedFunction
 import scala.collection.JavaConversions._
 import com.basho.riak.client.builders.BucketPropertiesBuilder
 import com.basho.riak.client.bucket.BucketProperties
+import com.basho.riak.client.raw.{Transport => RiakTransport}
 
 /**
  * Created by IntelliJ IDEA.
@@ -66,6 +67,12 @@ class ScaliakClient(rawClient: RawClient) {
   def generateAndSetClientId(): Array[Byte] = {
     rawClient.generateAndSetClientId()
   }
+
+  def transport = rawClient.getTransport
+
+  def isHttp = transport == RiakTransport.HTTP
+
+  def isPb = transport == RiakTransport.PB
 
   private def buildBucket(b: BucketProperties, name: String) = {
     val precommits = Option(b.getPrecommitHooks).cata(_.toArray.toSeq, Nil) map { _.asInstanceOf[NamedFunction] }
