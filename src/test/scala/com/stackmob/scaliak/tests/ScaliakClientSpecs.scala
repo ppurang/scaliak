@@ -79,14 +79,35 @@ class ScaliakClientSpecs extends Specification with Mockito { def is = args(sequ
       "returns an empty set if the raw client returns empty set"                    ! listBucketsEmpty ^
       "returns a Scala Set of the Java Set returned by raw client"                  ! listBucketsNonEmpty ^
       "does not setup exception handling for the IO action"                         ! listBucketsException ^
+                                                                                    endp^
+  "Working with Client IDs"                                                         ^
+    "Setting the Client ID By Value"                                                ^
+      "sets the value using the raw client"                                         ! setClientId ^
+      "returns the client whose id is being set"                                    ! setClientIdReturnsSelf ^p^
+    "Setting the Client ID Randomly"                                                ^      
+      "returns the generated value"                                                 ! autoGenId ^p^
+    "Getting the Client ID"                                                         ^
+      "returns a some containing the client id if one exists"                       ! getExistingClientId ^
+      "returns a none if a client id has not been set"                              ! getMissingClientId ^
+                                                                                    endp^
+  "Getting the underlying transport"                                                ^
+    "returns HTTP for HTTP Client"                                                  ! skipped ^
+    "returns PBC for Protobufs client"                                              ! skipped ^
+    "isHTTP returns true if client is HTTP"                                         ! skipped ^
+    "isHTTP returns false if client is PBC"                                         ! skipped ^
+    "isPBC returns true if client is PBC"                                           ! skipped ^
+    "isPBC returns false if client is HTTP"                                         ! skipped ^
+                                                                                    endp^
+  "Pinging Riak"                                                                    ^
+    "returns true if no exception is thrown by the raw client"                      ! skipped ^
+    "returns false if an exception is thrown by the raw client"                     ! skipped ^
+                                                                                    endp^
+  "Creating a link walk"                                                            ^
                                                                                     end
 
-  // TODO:
-  // things like client.bucket("name", nVal = 2, allowSiblings = true) e.g. create/update
 
   val rawClient = mock[com.basho.riak.client.raw.RawClient]
   val client = new ScaliakClient(rawClient)
-
 
   val bucketName = "test"
   val bucketProps = mock[com.basho.riak.client.bucket.BucketProperties]
@@ -225,6 +246,34 @@ class ScaliakClientSpecs extends Specification with Mockito { def is = args(sequ
 
     val r = client.bucket(bucketName, updateBucket = true,  nVal = 2.some, r = 2.some, w = 2.some, rw = 3.some, dw = 3.some).unsafePerformIO
     r.either must beLeft
+  }
+
+  def setClientId = {
+    val id = "1234".getBytes
+    client.setClientId(id)
+
+    there was one(rawClient).setClientId(MM.eq("1234".getBytes))
+  }
+
+  def setClientIdReturnsSelf = {
+    client.setClientId("1234".getBytes) must beEqualTo(client)
+  }
+  
+  def autoGenId = {
+    client.generateAndSetClientId()
+    there was one(rawClient).generateAndSetClientId()
+  }
+
+  def getExistingClientId = {
+    rawClient.getClientId() returns "1234".getBytes
+    client.clientId must beSome.like {
+      case bytes => new String(bytes) must_== "1234"
+    }
+  }
+
+  def getMissingClientId = {
+    rawClient.getClientId returns null
+    client.clientId must beNone
   }
 
 }

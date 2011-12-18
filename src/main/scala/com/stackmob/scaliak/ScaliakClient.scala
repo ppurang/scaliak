@@ -53,6 +53,20 @@ class ScaliakClient(rawClient: RawClient) {
     } map { validation(_) }
   }
 
+
+  // this method causes side effects and may throw
+  // exceptions with the PBCAdapter
+  def clientId = Option(rawClient.getClientId)
+
+  def setClientId(id: Array[Byte]) = {
+    rawClient.setClientId(id)
+    this
+  }
+
+  def generateAndSetClientId(): Array[Byte] = {
+    rawClient.generateAndSetClientId()
+  }
+
   private def buildBucket(b: BucketProperties, name: String) = {
     val precommits = Option(b.getPrecommitHooks).cata(_.toArray.toSeq, Nil) map { _.asInstanceOf[NamedFunction] }
     val postcommits = Option(b.getPostcommitHooks).cata(_.toArray.toSeq, Nil) map { _.asInstanceOf[NamedErlangFunction] }
