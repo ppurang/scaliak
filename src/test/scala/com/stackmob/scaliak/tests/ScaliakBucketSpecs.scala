@@ -9,7 +9,7 @@ import com.basho.riak.client.query.functions.NamedErlangFunction
 import com.basho.riak.client.IRiakObject
 import org.mockito.stubbing.OngoingStubbing
 import com.basho.riak.client.cap.{UnresolvedConflictException, VClock, Quorum}
-import org.mockito.{ArgumentMatcher, Matchers => MM}
+import org.mockito.{Matchers => MM}
 import com.stackmob.scaliak._
 import com.basho.riak.client.raw._
 
@@ -147,14 +147,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
     val rawClient = mock[RawClient]
     val bucket = createBucket
 
-    class DeleteMetaArgExtractor extends ArgumentMatcher[DeleteMeta] {
-      var argument: Option[DeleteMeta] = None
-
-      def matches(arg: AnyRef): Boolean = {
-        argument = Option(arg) map { _.asInstanceOf[DeleteMeta] }
-        true
-      }
-    }
+    class DeleteMetaArgExtractor extends util.MockitoArgumentExtractor[DeleteMeta]
     
     lazy val result = bucket.deleteByKey(testKey, fetchBefore = true).unsafePerformIO
 
@@ -427,14 +420,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
       "".getBytes
     )
 
-    class IRiakObjExtractor extends ArgumentMatcher[IRiakObject] {
-      var argument: Option[IRiakObject] = None
-
-      def matches(arg: AnyRef): Boolean = {
-        argument = Option(arg) map { _.asInstanceOf[IRiakObject] }
-        true
-      }
-    }
+    class IRiakObjExtractor extends util.MockitoArgumentExtractor[IRiakObject]
     
     def performsWrite = {
       result
