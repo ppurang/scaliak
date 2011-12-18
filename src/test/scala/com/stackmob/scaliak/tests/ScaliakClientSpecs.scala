@@ -12,6 +12,9 @@ import java.util.LinkedList
 import com.basho.riak.client.query.functions.{NamedFunction, NamedErlangFunction}
 import com.basho.riak.client.cap.Quorum
 import com.basho.riak.client.RiakException
+import util.MockitoArgumentExtractor
+import com.basho.riak.client.bucket.BucketProperties
+import org.mockito.{Matchers => MM}
 
 /**
  * Created by IntelliJ IDEA.
@@ -62,6 +65,15 @@ class ScaliakClientSpecs extends Specification with Mockito { def is = args(sequ
         "the returned bucket has the correct search value"                          ! { bucket must beSome.which(_.isSearchable == searchVal) } ^                                                                            p^
       "if the IO action throws"                                                     ^
         "returns a failure containing the exception"                                ! fetchFailure ^
+                                                                                    p^p^
+    "Creating/Updating Buckets"                                                     ^
+       "if all IO actions succeed"                                                  ^
+         "updates the bucket building the meta props from the args passed in"       ! takesMetaProps ^
+         "returns the updated bucket"                                               ! returnsOnUpdate ^p^
+       "if the fetch throws an exception"                                           ^
+         "returns a failure containing the exception"                               ! failsOnFetchException ^p^
+       "if the update throws an exception"                                          ^
+         "returns a failure returns a failure containing the exception"             ! failsOnUpdateException ^
                                                                                     p^p^
     "Listing Buckets"                                                               ^
       "returns an empty set if the raw client returns empty set"                    ! listBucketsEmpty ^
@@ -163,7 +175,7 @@ class ScaliakClientSpecs extends Specification with Mockito { def is = args(sequ
   }
 
   def fetchFailure = {
-    rawClient.fetchBucket(bucketName) throws (new IOException)
+    rawClient.fetchBucket(bucketName) throws (new IOException) thenReturns bucketProps // put the mock back in its original state after throwing
     val notBucket = client.bucket(bucketName).unsafePerformIO.either
     notBucket must beLeft
   }
@@ -185,6 +197,34 @@ class ScaliakClientSpecs extends Specification with Mockito { def is = args(sequ
   def listBucketsException = {
     rawClient.listBuckets() throws new NullPointerException
     client.listBuckets.unsafePerformIO must throwA[NullPointerException]
+  }
+
+  def takesMetaProps = {
+    // this test is crap but cant write an extractor for an argument for a function we cant stub
+    client.bucket(bucketName, updateBucket = true,  nVal = 2.some, r = 2.some, w = 2.some, rw = 3.some, dw = 3.some).unsafePerformIO
+
+    there was one(rawClient).updateBucket(MM.eq(bucketName), MM.isA(classOf[BucketProperties]))
+  }
+
+  def returnsOnUpdate = {
+    val r = client.bucket(bucketName, updateBucket = true,  nVal = 2.some, r = 2.some, w = 2.some, rw = 3.some, dw = 3.some).unsafePerformIO
+
+    r.toOption must beSome
+  }
+
+
+  def failsOnFetchException = {
+    rawClient.fetchBucket(bucketName) throws (new IOException) thenReturns bucketProps // put the mock back in its original state after
+
+    val r = client.bucket(bucketName, updateBucket = true,  nVal = 2.some, r = 2.some, w = 2.some, rw = 3.some, dw = 3.some).unsafePerformIO
+    r.either must beLeft
+  }
+
+  def failsOnUpdateException = {
+    rawClient.updateBucket(MM.eq(bucketName), MM.isA(classOf[BucketProperties])) throws (new IOException)
+
+    val r = client.bucket(bucketName, updateBucket = true,  nVal = 2.some, r = 2.some, w = 2.some, rw = 3.some, dw = 3.some).unsafePerformIO
+    r.either must beLeft
   }
 
 }
