@@ -2,13 +2,21 @@ name := "scaliak"
 
 organization := "com.stackmob"
 
-version := "0.0.0"
+version := "0.0.0-SNAPSHOT"
 
 scalaVersion := "2.9.1"
 
+crossScalaVersions := Seq("2.9.1")
+
+publishTo <<= (version) { version: String =>
+  val stackmobNexus = "http://nexus/nexus/content/repositories/"
+  if (version.trim.endsWith("SNAPSHOT")) Some("snapshots" at stackmobNexus + "snapshots/")
+  else                                   Some("releases"  at stackmobNexus + "releases/")
+}
+
 resolvers ++= Seq("Typesafe Repository (releases)" at "http://repo.typesafe.com/typesafe/releases/",
-                   "Scala Tools Repository (snapshots)" at "http://scala-tools.org/repo-snapshots",
-                   "Scala Tools Repository (releases)"  at "http://scala-tools.org/repo-releases")
+                  "Scala Tools Repository (snapshots)" at "http://scala-tools.org/repo-snapshots",
+                  "Scala Tools Repository (releases)"  at "http://scala-tools.org/repo-releases")
 
 libraryDependencies ++= Seq(		          
     "org.scalaz" %% "scalaz-core" % "6.0.3" withSources(),
