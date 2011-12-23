@@ -28,22 +28,22 @@ class ScaliakClient(rawClient: RawClient) {
 
   def bucket(name: String,
              updateBucket: Boolean = false,
-             allowSiblings: Option[Boolean] = None,
-             lastWriteWins: Option[Boolean] = None,
-             nVal: Option[Int] = None,
-             r: Option[Int] = None,
-             w: Option[Int] = None,
-             rw: Option[Int] = None,
-             dw: Option[Int] = None,
-             pr: Option[Int] = None,
-             pw: Option[Int] = None,
-             basicQuorum: Option[Boolean] = None,
-             notFoundOk: Option[Boolean] = None): IO[Validation[Throwable, ScaliakBucket]] = {
+             allowSiblings: Boolean = null.asInstanceOf[Boolean],
+             lastWriteWins: Boolean = null.asInstanceOf[Boolean],
+             nVal: Int = null.asInstanceOf[Int],
+             r: Int = null.asInstanceOf[Int],
+             w: Int = null.asInstanceOf[Int],
+             rw: Int = null.asInstanceOf[Int],
+             dw: Int = null.asInstanceOf[Int],
+             pr: Int = null.asInstanceOf[Int],
+             pw: Int = null.asInstanceOf[Int],
+             basicQuorum: Boolean = null.asInstanceOf[Boolean],
+             notFoundOk: Boolean = null.asInstanceOf[Boolean]): IO[Validation[Throwable, ScaliakBucket]] = {
     val fetchAction = rawClient.fetchBucket(name).pure[IO]
     val fullAction = if (updateBucket) {
-      rawClient.updateBucket(name,
-        createUpdateBucketProps(allowSiblings, lastWriteWins, nVal, r,
-          w, rw, dw, pr, pw, basicQuorum, notFoundOk)).pure[IO] >>=| fetchAction
+      val bucketProps = createUpdateBucketProps(Option(allowSiblings), Option(lastWriteWins), Option(nVal), Option(r),
+        Option(w), Option(rw), Option(dw), Option(pr), Option(pw), Option(basicQuorum), Option(notFoundOk))
+      rawClient.updateBucket(name, bucketProps).pure[IO] >>=| fetchAction
     } else fetchAction
 
     (for {      

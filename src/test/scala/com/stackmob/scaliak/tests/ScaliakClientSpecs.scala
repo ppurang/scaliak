@@ -223,13 +223,13 @@ class ScaliakClientSpecs extends Specification with Mockito { def is = args(sequ
 
   def takesMetaProps = {
     // this test is crap but cant write an extractor for an argument for a function we cant stub
-    client.bucket(bucketName, updateBucket = true,  nVal = 2.some, r = 2.some, w = 2.some, rw = 3.some, dw = 3.some).unsafePerformIO
+    client.bucket(bucketName, updateBucket = true,  nVal = 2, r = 2, w = 2, rw = 3, dw = 3).unsafePerformIO
 
     there was one(rawClient).updateBucket(MM.eq(bucketName), MM.isA(classOf[BucketProperties]))
   }
 
   def returnsOnUpdate = {
-    val r = client.bucket(bucketName, updateBucket = true,  nVal = 2.some, r = 2.some, w = 2.some, rw = 3.some, dw = 3.some).unsafePerformIO
+    val r = client.bucket(bucketName, updateBucket = true,  nVal = 2, r = 2, w = 2, rw = 3, dw = 3).unsafePerformIO
 
     r.toOption must beSome
   }
@@ -238,14 +238,14 @@ class ScaliakClientSpecs extends Specification with Mockito { def is = args(sequ
   def failsOnFetchException = {
     rawClient.fetchBucket(bucketName) throws (new IOException) thenReturns bucketProps // put the mock back in its original state after
 
-    val r = client.bucket(bucketName, updateBucket = true,  nVal = 2.some, r = 2.some, w = 2.some, rw = 3.some, dw = 3.some).unsafePerformIO
+    val r = client.bucket(bucketName, updateBucket = true,  nVal = 2, r = 2, w = 2, rw = 3, dw = 3).unsafePerformIO
     r.either must beLeft
   }
 
   def failsOnUpdateException = {
     rawClient.updateBucket(MM.eq(bucketName), MM.isA(classOf[BucketProperties])) throws (new IOException)
 
-    val r = client.bucket(bucketName, updateBucket = true,  nVal = 2.some, r = 2.some, w = 2.some, rw = 3.some, dw = 3.some).unsafePerformIO
+    val r = client.bucket(bucketName, updateBucket = true,  nVal = 2, r = 2, w = 2, rw = 3, dw = 3).unsafePerformIO
     r.either must beLeft
   }
 
