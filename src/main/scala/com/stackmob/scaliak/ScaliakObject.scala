@@ -70,10 +70,10 @@ sealed trait PartialScaliakObject {
 
 object PartialScaliakObject {
   
-  def apply(key: String, value: Array[Byte], contentType: Option[String] = None, vTag: Option[String] = None) = new PartialScaliakObject {
+  def apply(key: String, value: Array[Byte], contentType: String = null.asInstanceOf[String], vTag: Option[String] = None) = new PartialScaliakObject {
     def _key = key
     def _bytes = value
-    def _contentType = contentType
+    def _contentType = Option(contentType)
     def _vTag = vTag
   }
   
