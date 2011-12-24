@@ -102,8 +102,6 @@ class ScaliakClientSpecs extends Specification with Mockito { def is = args(sequ
   "Pinging Riak"                                                                    ^
     "returns true if no exception is thrown by the raw client"                      ! skipped ^
     "returns false if an exception is thrown by the raw client"                     ! skipped ^
-                                                                                    endp^
-  "Creating a link walk"                                                            ^
                                                                                     end
 
 
