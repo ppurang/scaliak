@@ -74,9 +74,7 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
                                                                                     p^
         "When there are conflicts"                                                  ^
           "the default conflict resolver throws an UnresolvedConflictException"     ! conflictedFetch.testDefaultConflictRes ^
-                                                                                    p^
-      "Can set the r value for the request"                                         ! skipped ^
-                                                                                    p^p^
+                                                                                    p^p^p^
     "Fetching with Conversion"                                                      ^
       "When the key being fetched is missing returns None"                          ! skipped ^
       "when the key being fetched exists"                                           ^
@@ -84,6 +82,10 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
           "when the conversion succeeds"                                            ^
             "returns the object of type T when converter is supplied explicitly"    ! simpleFetch.testConversionExplicit ^
             "returns the object of type T when converter is supplied implicitly"    ! simpleFetch.testConversionImplicit ^
+                                                                                    p^p^p^p^
+    "Setting the r value for the request"                                           ^
+      "if not set the generated meta has a null r value"                            ! fetchArguments.testDefaultR ^
+      "if set the generated meta has the given r value"                             ! fetchArguments.testPassedR  ^
                                                                                     endp^
   "Writing Data"                                                                    ^
     "With No Conversion"                                                            ^
@@ -325,7 +327,6 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
     }
   }
 
-
   object writeMissing extends writeBase {
     val mockResponse = mockRiakResponse(Array())
     mockResponse.getVclock returns null
@@ -440,6 +441,41 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
 
   }
 
+  object fetchArguments extends context {
+    // these aren't really used
+    val rawClient = mock[RawClient]
+    val bucket = createBucket
+    
+    class FetchMetaExtractor extends util.MockitoArgumentExtractor[FetchMeta]
+    
+    def initExtractor(rawClient: RawClient) = {
+      val extractor = new FetchMetaExtractor
+      rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.argThat(extractor)) returns mockRiakResponse(Array())
+      extractor
+    } 
+    
+    def testArg(f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]]): FetchMetaExtractor = {
+      val rawClient = mock[RawClient]
+      val ex = initExtractor(rawClient)
+      val bucket = createBucketWithClient(rawClient)
+      f(bucket).unsafePerformIO
+      ex
+    }
+    
+    def testDefaultR = {
+      (testArg { _.fetch(testKey) }).argument must beSome.like {
+        case meta => meta.getR must beNull
+      }
+    }
+
+    def testPassedR = {
+      (testArg { _.fetch(testKey, r = 3)}).argument must beSome.like {
+        case meta => meta.getR must beEqualTo(3)
+      }
+    }
+  }  
+  
+
   object conflictedFetch extends context {
 
     val rawClient = mock[RawClient]
@@ -467,7 +503,6 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
       }
     }
   }
-
 
   object simpleFetch extends context {
 

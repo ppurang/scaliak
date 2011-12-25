@@ -40,9 +40,10 @@ class ScaliakBucket(rawClient: RawClient,
                     val isSearchable: Boolean) {   
 
 
-  def fetch[T](key: String)
+  def fetch[T](key: String, 
+               r: RValArgument = RValArgument())
               (implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
-    (rawFetch(key) map {
+    (rawFetch(key, r) map {
       riakResponseToResult(_)
     }) except { t => t.failNel.pure[IO] }
   }
@@ -86,9 +87,10 @@ class ScaliakBucket(rawClient: RawClient,
     } yield ().success[Throwable]) except { t => t.fail[Unit].pure[IO] }
   }
 
-  private def rawFetch(key: String) = {
-    val emptyFetchMeta = new FetchMeta.Builder().build() // TODO: support fetch meta arguments
-    rawClient.fetch(name, key, emptyFetchMeta).pure[IO]
+  private def rawFetch(key: String, r: RValArgument = RValArgument()) = {
+    val fetchMetaBuilder = new FetchMeta.Builder()
+    r addToMeta fetchMetaBuilder
+    rawClient.fetch(name, key, fetchMetaBuilder.build).pure[IO]
   }
 
   private def riakResponseToResult[T](r: RiakResponse)
