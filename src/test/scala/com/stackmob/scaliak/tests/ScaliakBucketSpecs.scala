@@ -12,6 +12,7 @@ import com.basho.riak.client.cap.{UnresolvedConflictException, VClock, Quorum}
 import org.mockito.{Matchers => MM}
 import com.stackmob.scaliak._
 import com.basho.riak.client.raw._
+import java.util.Date
 
 /**
  * Created by IntelliJ IDEA.
@@ -85,7 +86,25 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
                                                                                     p^p^p^p^
     "Setting the r value for the request"                                           ^
       "if not set the generated meta has a null r value"                            ! fetchArguments.testDefaultR ^
-      "if set the generated meta has the given r value"                             ! fetchArguments.testPassedR  ^
+      "if set the generated meta has the given r value"                             ! fetchArguments.testPassedR  ^p^
+    "Setting the pr value for the request"                                          ^
+      "if not set the generated meta has a null pr value"                           ! fetchArguments.testDefaultPR ^
+      "if set the generated meta has the given pr value"                            ! fetchArguments.testPassedPR  ^p^
+    "Setting the notFoundOk value for the request"                                  ^
+      "if not set the generated meta has a null notFoundOk value"                   ! fetchArguments.testDefaultNotFoundOk ^
+      "if set the generated meta has the given notFoundOk value"                    ! fetchArguments.testPassedNotFoundOk  ^p^
+    "Setting the basicQuorum value for the request"                                 ^
+      "if not set the generated meta has a null basicQuorum value"                  ! fetchArguments.testDefaultBasicQuorum ^
+      "if set the generated meta has the given basicQuorum value"                   ! fetchArguments.testPassedBasicQuorum  ^p^
+    "Setting the returnDeletedVClock value for the request"                         ^
+      "if not set the generated meta has a null returnDeletedVClock value"          ! fetchArguments.testDefaultReturnedVClock ^
+      "if set the generated meta has the given returnDeletedVClock value"           ! fetchArguments.testPassedReturnedVClock  ^p^
+    "Setting the modifiedSince value for the request"                               ^
+      "if not set the generated meta has a null modifiedSince value"                ! fetchArguments.testDefaultModifiedSince ^
+      "if set the generated meta has the given modifiedSince value"                 ! fetchArguments.testPassedModifiedSince  ^p^
+    "Setting the ifModified value for the request"                                  ^
+      "if not set the generated meta has a null ifModified value"                   ! fetchArguments.testDefaultIfModified ^
+      "if set the generated meta has the given ifModified value"                    ! fetchArguments.testPassedIfModified  ^
                                                                                     endp^
   "Writing Data"                                                                    ^
     "With No Conversion"                                                            ^
@@ -461,18 +480,37 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
       f(bucket).unsafePerformIO
       ex
     }
-    
-    def testDefaultR = {
-      (testArg { _.fetch(testKey) }).argument must beSome.like {
-        case meta => meta.getR must beNull
-      }
-    }
 
-    def testPassedR = {
-      (testArg { _.fetch(testKey, r = 3)}).argument must beSome.like {
-        case meta => meta.getR must beEqualTo(3)
+    def testDefault[T](metaProp: FetchMeta => T) = {
+      (testArg { _.fetch(testKey) }).argument must beSome.like {
+        case meta => metaProp(meta) must beNull
       }
     }
+    
+    def testPassed[T](f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]], metaProp: FetchMeta => T, expected: T) = {
+      testArg(f).argument must beSome.like {
+        case meta => metaProp(meta) must beEqualTo(expected)
+      }
+    } 
+
+    def testDefaultR = testDefault(_.getR)    
+    def testDefaultPR = testDefault(_.getPr)
+    def testDefaultNotFoundOk = testDefault(_.getNotFoundOK)
+    def testDefaultBasicQuorum = testDefault(_.getBasicQuorum)
+    def testDefaultReturnedVClock = testDefault(_.getReturnDeletedVClock)
+    def testDefaultModifiedSince = testDefault(_.getIfModifiedSince)
+    def testDefaultIfModified = testDefault(_.getIfModifiedVClock)
+
+    def testPassedR = testPassed(_.fetch(testKey, r = 3), _.getR, 3)
+    def testPassedPR = testPassed(_.fetch(testKey, pr = 2), _.getPr, 2)
+    def testPassedNotFoundOk = testPassed(_.fetch(testKey, notFoundOk = true), _.getNotFoundOK, true)
+    def testPassedBasicQuorum = testPassed(_.fetch(testKey, basicQuorum = false), _.getBasicQuorum, false)
+    def testPassedReturnedVClock = testPassed(_.fetch(testKey, returnDeletedVClock = true), _.getReturnDeletedVClock, true)
+    def testPassedModifiedSince = testPassed(_.fetch(testKey, ifModifiedSince = testDate), _.getIfModifiedSince, testDate)
+    def testPassedIfModified = testPassed(_.fetch(testKey, ifModified = testVClock), _.getIfModifiedVClock, testVClock)
+
+    val testDate = new Date(System.currentTimeMillis())
+    val testVClock = mock[VClock]
   }  
   
 

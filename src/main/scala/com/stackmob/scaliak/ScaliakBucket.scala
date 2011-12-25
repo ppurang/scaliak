@@ -39,15 +39,31 @@ class ScaliakBucket(rawClient: RawClient,
                     val linkWalkFunction: NamedErlangFunction,
                     val isSearchable: Boolean) {   
 
-
-  def fetch[T](key: String, 
-               r: RValArgument = RValArgument())
+  def fetch[T](key: String,
+               r: RArgument = RArgument(),
+               pr: PRArgument = PRArgument(),
+               notFoundOk: NotFoundOkArgument = NotFoundOkArgument(),
+               basicQuorum: BasicQuorumArgument = BasicQuorumArgument(),
+               returnDeletedVClock: ReturnDeletedVCLockArgument = ReturnDeletedVCLockArgument(),
+               ifModifiedSince: IfModifiedSinceArgument = IfModifiedSinceArgument(),
+               ifModified: IfModifiedVClockArgument = IfModifiedVClockArgument())
               (implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
-    (rawFetch(key, r) map {
-      riakResponseToResult(_)
+    (rawFetch(key, r, pr, notFoundOk, basicQuorum, returnDeletedVClock, ifModifiedSince, ifModified) map {
+      riakResponseToResult(_)      
     }) except { t => t.failNel.pure[IO] }
   }
 
+  // r - int -fetch
+  // pr - int - fetch
+  // notFoundOk - boolean -fetch
+  // basicQuorum - bool - fetch
+  // returnDeleteVClock - bool - fetch
+  // pw - int - store
+  // w - int - store
+  // dw - int - store
+  // returnBody - bool - store
+  // ifNoneMatch - bool - store
+  // ifNotModified - bool - store
   def store[T](obj: T)(implicit
                        converter: ScaliakConverter[T],
                        resolver: ScaliakResolver[T],
@@ -87,9 +103,16 @@ class ScaliakBucket(rawClient: RawClient,
     } yield ().success[Throwable]) except { t => t.fail[Unit].pure[IO] }
   }
 
-  private def rawFetch(key: String, r: RValArgument = RValArgument()) = {
+  private def rawFetch(key: String, 
+                       r: RArgument = RArgument(), 
+                       pr: PRArgument = PRArgument(),
+                       notFoundOk: NotFoundOkArgument = NotFoundOkArgument(),
+                       basicQuorum: BasicQuorumArgument = BasicQuorumArgument(),
+                       returnDeletedVClock: ReturnDeletedVCLockArgument = ReturnDeletedVCLockArgument(),
+                       ifModifiedSince: IfModifiedSinceArgument = IfModifiedSinceArgument(),
+                       ifModified: IfModifiedVClockArgument = IfModifiedVClockArgument()) = {
     val fetchMetaBuilder = new FetchMeta.Builder()
-    r addToMeta fetchMetaBuilder
+    List(r, pr, notFoundOk, basicQuorum, returnDeletedVClock, ifModifiedSince, ifModified) foreach { _ addToMeta fetchMetaBuilder }
     rawClient.fetch(name, key, fetchMetaBuilder.build).pure[IO]
   }
 
