@@ -8,9 +8,9 @@ import java.io.IOException
 import com.basho.riak.client.http.response.RiakIORuntimeException
 import com.basho.riak.client.query.functions.{NamedErlangFunction, NamedFunction}
 import scala.collection.JavaConversions._
-import com.basho.riak.client.builders.BucketPropertiesBuilder
 import com.basho.riak.client.bucket.BucketProperties
 import com.basho.riak.client.raw.{Transport => RiakTransport}
+import com.basho.riak.client.builders.BucketPropertiesBuilder
 
 /**
  * Created by IntelliJ IDEA.
@@ -27,23 +27,24 @@ class ScaliakClient(rawClient: RawClient) {
   }
 
   def bucket(name: String,
-             updateBucket: Boolean = false,
-             allowSiblings: Boolean = null.asInstanceOf[Boolean],
-             lastWriteWins: Boolean = null.asInstanceOf[Boolean],
-             nVal: Int = null.asInstanceOf[Int],
-             r: Int = null.asInstanceOf[Int],
-             w: Int = null.asInstanceOf[Int],
-             rw: Int = null.asInstanceOf[Int],
-             dw: Int = null.asInstanceOf[Int],
-             pr: Int = null.asInstanceOf[Int],
-             pw: Int = null.asInstanceOf[Int],
-             basicQuorum: Boolean = null.asInstanceOf[Boolean],
-             notFoundOk: Boolean = null.asInstanceOf[Boolean]): IO[Validation[Throwable, ScaliakBucket]] = {
+             allowSiblings: AllowSiblingsArgument = AllowSiblingsArgument(),
+             lastWriteWins: LastWriteWinsArgument = LastWriteWinsArgument(),
+             nVal: NValArgument = NValArgument(),
+             r: RArgument = RArgument(),
+             w: WArgument = WArgument(),
+             rw: RWArgument = RWArgument(),
+             dw: DWArgument = DWArgument(),
+             pr: PRArgument = PRArgument(),
+             pw: PWArgument = PWArgument(),
+             basicQuorum: BasicQuorumArgument = BasicQuorumArgument(),
+             notFoundOk: NotFoundOkArgument = NotFoundOkArgument()): IO[Validation[Throwable, ScaliakBucket]] = {
+    val metaArgs = List(allowSiblings, lastWriteWins, nVal, r, w, rw, dw, pr, pw, basicQuorum, notFoundOk)
+    val updateBucket = (metaArgs map { _.value.isDefined }).asMA.sum // update if more one or more arguments is passed in
     val fetchAction = rawClient.fetchBucket(name).pure[IO]
     val fullAction = if (updateBucket) {
-      val bucketProps = createUpdateBucketProps(Option(allowSiblings), Option(lastWriteWins), Option(nVal), Option(r),
-        Option(w), Option(rw), Option(dw), Option(pr), Option(pw), Option(basicQuorum), Option(notFoundOk))
-      rawClient.updateBucket(name, bucketProps).pure[IO] >>=| fetchAction
+      rawClient.updateBucket(name,
+        createUpdateBucketProps(allowSiblings, lastWriteWins, nVal, r,w, rw, dw, pr, pw, basicQuorum, notFoundOk)
+      ).pure[IO] >>=| fetchAction
     } else fetchAction
 
     (for {      
@@ -107,29 +108,20 @@ class ScaliakClient(rawClient: RawClient) {
     )
   }
 
-  private def createUpdateBucketProps(allowSiblings: Option[Boolean] = None,
-                                      lastWriteWins: Option[Boolean] = None,
-                                      nVal: Option[Int] = None,
-                                      r: Option[Int] = None,
-                                      w: Option[Int] = None,
-                                      rw: Option[Int] = None,
-                                      dw: Option[Int] = None,
-                                      pr: Option[Int] = None,
-                                      pw: Option[Int] = None,
-                                      basicQuorum: Option[Boolean] = None,
-                                      notFoundOk: Option[Boolean] = None) = {
+  private def createUpdateBucketProps(allowSiblings: AllowSiblingsArgument,
+                                      lastWriteWins: LastWriteWinsArgument,
+                                      nVal: NValArgument,
+                                      r: RArgument,
+                                      w: WArgument,
+                                      rw: RWArgument,
+                                      dw: DWArgument,
+                                      pr: PRArgument,
+                                      pw: PWArgument,
+                                      basicQuorum: BasicQuorumArgument,
+                                      notFoundOk: NotFoundOkArgument) = {
     val builder = new BucketPropertiesBuilder
-    allowSiblings foreach builder.allowSiblings
-    lastWriteWins foreach builder.lastWriteWins
-    nVal foreach builder.nVal
-    r foreach builder.r
-    w foreach builder.w
-    rw foreach builder.rw
-    dw foreach builder.dw
-    pr foreach builder.pr
-    pw foreach builder.pw
-    basicQuorum foreach builder.basicQuorum
-    notFoundOk foreach builder.notFoundOK
+    List(allowSiblings, lastWriteWins, nVal, r, w, rw, dw, pr, pw, basicQuorum, notFoundOk) foreach { _ addToMeta builder }
     builder.build
   }
+
 }
