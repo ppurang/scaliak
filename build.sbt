@@ -26,3 +26,5 @@ libraryDependencies ++= Seq(
     "org.specs2" %% "specs2" % "1.6.1" % "test" withSources(),
     "org.mockito" % "mockito-all" % "1.8.5" % "test" withSources(),
     "org.specs2" %% "specs2-scalaz-core" % "6.0.1" % "test" withSources())
+
+logBuffered := false
