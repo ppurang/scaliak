@@ -62,28 +62,37 @@ object ScaliakObject {
 }
 
 sealed trait PartialScaliakObject {
+  import scala.collection.JavaConverters._
+
   def _key: String
   def _vTag: Option[String]
   def _bytes: Array[Byte]
   def _contentType: Option[String]
+  def _links: Option[NonEmptyList[ScaliakLink]]
 
   def asRiak(bucket: String, vClock: VClock): IRiakObject = {
     (RiakObjectBuilder.newBuilder(bucket, _key)
       withVClock vClock
       withContentType (_contentType | RiakConstants.CTYPE_TEXT_UTF8)
       withValue _bytes
+      withLinks ((_links map { _.list map { l => new RiakLink(l.bucket, l.key, l.tag) }}) | Nil).asJavaCollection
       withVtag (_vTag | null)).build()
 
   }
 }
 
 object PartialScaliakObject {
-  
-  def apply(key: String, value: Array[Byte], contentType: String = null.asInstanceOf[String], vTag: Option[String] = None) = new PartialScaliakObject {
+  import com.basho.riak.client.http.util.{Constants => RiakConstants}
+  def apply(key: String, 
+            value: Array[Byte], 
+            contentType: String = RiakConstants.CTYPE_TEXT_UTF8, 
+            links: Option[NonEmptyList[ScaliakLink]] = none,
+            vTag: Option[String] = none) = new PartialScaliakObject {
     def _key = key
     def _bytes = value
     def _contentType = Option(contentType)
     def _vTag = vTag
+    def _links = links
   }
   
 }

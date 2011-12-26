@@ -125,7 +125,9 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
                                                                                     p^
         "Given a mutator other than the default"                                    ^
           "Writes the ScaliakObject as returned from the mutator"                   ! writeExisting.customMutator ^
-                                                                                    p^p^p^
+                                                                                    p^p^
+      "Can update the links on an object"                                           ! writeExisting.testUpdateLinks ^
+                                                                                    p^
     "With Conversion"                                                               ^
       "When the Key Being Fetched Does Not Exist"                                   ^
         """Given the default "Clobber Mutation""""                                  ^
@@ -283,6 +285,14 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     val extractor = new IRiakObjExtractor
     val mockStoreResponse = mockRiakResponse(Array())
     rawClient.store(MM.argThat(extractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse // TODO: these should not return null
+    
+    def testUpdateLinks = {
+      result // execute call
+      
+      extractor.argument must beSome.like {
+        case obj => obj.getLinks.toArray must haveSize(testStoreObject.numLinks)
+      }
+    }
 
     def customMutator = {
       val newRawClient = mock[RawClient]
@@ -430,7 +440,8 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       testContentType,
       mockVClock,
       None,
-      "".getBytes
+      "".getBytes,
+      links = nel(ScaliakLink("test", "test", "test")).some
     )
 
     class IRiakObjExtractor extends util.MockitoArgumentExtractor[IRiakObject]
