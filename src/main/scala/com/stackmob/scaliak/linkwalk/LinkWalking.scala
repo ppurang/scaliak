@@ -3,6 +3,7 @@ package com.stackmob.scaliak.linkwalk
 import scalaz._
 import Scalaz._
 import com.basho.riak.client.query.LinkWalkStep.Accumulate
+import com.stackmob.scaliak.{ScaliakConverter, ScaliakResolver, ScaliakObject, ScaliakBucket}
 
 /**
  * Created by IntelliJ IDEA.
@@ -25,13 +26,13 @@ sealed trait LinkWalkStep extends LinkWalkStepOperators {
 
 object LinkWalkStep {
 
-  def apply(bucket: String, tag: String) = mkLWS(bucket, tag, Accumulate.DEFAULT)
+  def apply(bucket: String, tag: String): LinkWalkStep = apply(bucket, tag, Accumulate.DEFAULT)
 
-  def apply(bucket: String, tag: String, shouldAccumulate: Boolean) =
-    if (shouldAccumulate) mkLWS(bucket, tag, Accumulate.YES)
-    else mkLWS(bucket, tag, Accumulate.NO)
+  def apply(bucket: String, tag: String, shouldAccumulate: Boolean): LinkWalkStep =
+    if (shouldAccumulate) apply(bucket, tag, Accumulate.YES)
+    else apply(bucket, tag, Accumulate.NO)
 
-  private[this] def mkLWS(b: String, t: String, a: Accumulate) = new LinkWalkStep {
+  def apply(b: String, t: String, a: Accumulate): LinkWalkStep = new LinkWalkStep {
     val bucket = b
     val tag = t
     val accumulate = a
@@ -67,4 +68,13 @@ class LinkWalkStepTuple2(value: (String, String)) {
 
 class LinkWalkStepsW(values: LinkWalkSteps) extends LinkWalkStepOperators {
   val existingSteps = values
+}
+
+class LinkWalkStartTuple(values: (ScaliakBucket, ScaliakObject)) {
+  private val bucket = values._1
+  private val obj = values._2
+
+  def linkWalk[T](steps: LinkWalkSteps)(implicit converter: ScaliakConverter[T]) = {
+    bucket.linkWalk(obj, steps)
+  }
 }

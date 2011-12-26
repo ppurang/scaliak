@@ -21,7 +21,7 @@ import java.util.Date
  * Time: 10:30 PM
  */
 
-class ScaliakBucketSpecs extends Specification with Mockito { def is =
+class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUtils { def is =
   "Scaliak Bucket".title                                                            ^
   """                                                                               ^
   This class provides the primary functionality for fetching data
@@ -646,28 +646,6 @@ class ScaliakBucketSpecs extends Specification with Mockito { def is =
     )
 
     def createBucket = createBucketWithClient(rawClient)
-  }
-
-  def mockRiakObj(bucket: String, key: String, value: Array[Byte], contentType: String, vClockStr: String): IRiakObject = {
-    val mocked = mock[IRiakObject]
-    val mockedVClock = mock[VClock]
-    mockedVClock.asString returns vClockStr
-    mockedVClock.getBytes returns vClockStr.getBytes
-    mocked.getKey returns key
-    mocked.getValue returns value
-    mocked.getBucket returns bucket
-    mocked.getVClock returns mockedVClock
-    mocked.getContentType returns contentType
-
-    mocked
-  }
-
-  def mockRiakResponse(objects: Array[IRiakObject]) = {
-    val mocked = mock[RiakResponse]
-    mocked.getRiakObjects returns objects
-    mocked.numberOfValues returns objects.length
-
-    mocked
   }
 
 }

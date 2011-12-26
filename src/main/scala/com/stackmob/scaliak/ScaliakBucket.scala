@@ -7,6 +7,7 @@ import com.basho.riak.client.query.functions.{NamedFunction, NamedErlangFunction
 import scala.collection.JavaConverters._
 import com.basho.riak.client.cap.{UnresolvedConflictException, Quorum}
 import com.basho.riak.client.raw._
+import query.LinkWalkSpec
 
 /**
  * Created by IntelliJ IDEA.
@@ -101,6 +102,22 @@ class ScaliakBucket(rawClient: RawClient,
       deleteMeta <- prepareDeleteMeta(mbHeadResponse, deleteMetaBuilder).pure[IO]
       _ <- rawClient.delete(name, key, deleteMeta).pure[IO]
     } yield ().success[Throwable]) except { t => t.fail[Unit].pure[IO] }
+  }
+
+
+  import linkwalk._
+  // This method discards any objects that have conversion errors
+  def linkWalk[T](obj: ScaliakObject, steps: LinkWalkSteps)(implicit converter: ScaliakConverter[T]): IO[Iterable[Iterable[T]]] = {
+    for {
+      walkResult <- rawClient.linkWalk(generateLinkWalkSpec(name, obj.key, steps)).pure[IO]
+    } yield {
+      // this is kinda ridiculous
+      walkResult.asScala map { _.asScala map { converter.read(_).toOption } filter { _.isDefined } map { _.get } } filterNot { _.isEmpty }
+    }
+  }  
+  
+  private def generateLinkWalkSpec(bucket: String, key: String, steps: LinkWalkSteps) = {
+    new LinkWalkSpec(steps, bucket, key)
   }
 
   private def rawFetch(key: String, 

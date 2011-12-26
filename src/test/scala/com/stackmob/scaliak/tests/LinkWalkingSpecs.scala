@@ -1,12 +1,19 @@
 package com.stackmob.scaliak.tests
 
 import org.specs2._
+import mock._
 import scalaz._
 import Scalaz._
-import com.basho.riak.client.query.{LinkWalkStep => JLinkWalkStep}
 import com.basho.riak.client.query.LinkWalkStep.Accumulate
 import com.stackmob.scaliak._
 import linkwalk._
+import com.basho.riak.client.raw.RawClient
+import com.basho.riak.client.query.functions.NamedErlangFunction
+import com.basho.riak.client.raw.query.LinkWalkSpec
+import org.mockito.{Matchers => MM}
+import com.basho.riak.client.query.{WalkResult, LinkWalkStep => JLinkWalkStep}
+import com.basho.riak.client.IRiakObject
+import com.basho.riak.client.cap.{UnresolvedConflictException, Quorum, VClock}
 
 /**
  * Created by IntelliJ IDEA.
@@ -15,7 +22,7 @@ import linkwalk._
  * Time: 10:35 PM 
  */
 
-class LinkWalkingSpecs extends Specification { def is =
+class LinkWalkingSpecs extends Specification with Mockito with util.MockRiakUtils { def is =
   "Link Walking DSL".title                                                          ^
   """
   Scaliak provides a simple DSL for link walkink.
@@ -52,14 +59,16 @@ class LinkWalkingSpecs extends Specification { def is =
       "can add together multiple elements adding to the list in order"              ! testAdd4 ^
       "can mix with multiplication"                                                 ! testAddMultMix ^
       "mixing with multiplaction using operator syntax preserves op precedence"     ! testAddMultOperatorMix ^
+                                                                                    endp^
+  "Walking from a Bucket & ScaliakObject"                                           ^
+    "Performs a linkWalk on the raw client passing in the correct start bucket"     ! walkingSimpleObject.testStartBucket ^
+    "Passes in the correct start key"                                               ! walkingSimpleObject.testStartKey ^
+    "passes in the correct steps"                                                   ! walkingSimpleObject.testStartSteps ^
+    "returns an Iterable[Iterable[ScaliakObject]] of the results"                   ! walkingSimpleObject.testSimpleResults ^
+                                                                                    endp^
+  "Walking from a Bucket & DomainObject"                                            ^
+    "converts all results to domain objects discarding conversion errors"           ! walkingSimpleObject.testDomainResults ^
                                                                                     end
-
-  /*"Walking from a Bucket & ScaliakObject"
-  ""*/
-
-  /*"Walking from a Bucket & DomainObject"
-    ""*/
-
   val lwsBucket = "bucket"
   val lwsTag = "tag"
   val lws = LinkWalkStep(lwsBucket, lwsTag, true)
@@ -141,7 +150,133 @@ class LinkWalkingSpecs extends Specification { def is =
     ((lws --> lws2 * 3 --> lws3 * 2) map { _.bucket }).list must contain(lwsBucket, bucket2, bucket2, bucket2, bucket3, bucket3).only.inOrder
   }
 
+  object walkingSimpleObject {
+    class WalkSpecExtractor extends util.MockitoArgumentExtractor[LinkWalkSpec]
 
+    val testKey = "test-key"
+    val testContentType = "text/plain"
+    val mockVClock = mock[VClock]
+    val obj = new ScaliakObject(
+      testKey,
+      lwsBucket,
+      testContentType,
+      mockVClock,
+      None,
+      "".getBytes
+    )
+
+    def testStartBucket = {
+      val (rawClient, bucket) = createClientAndBucket
+      val lws2 = LinkWalkStep("bucket", "tag")
+      val walkAction = (bucket, obj) linkWalk lws --> lws2
+      val extractor = new WalkSpecExtractor
+      rawClient.linkWalk(MM.argThat(extractor)) returns createWalkResult()
+      walkAction.unsafePerformIO
+
+      extractor.argument must beSome.like {
+        case spec => spec.getStartBucket must beEqualTo(lwsBucket)
+      }
+    }
+
+    def testStartKey = {
+      val (rawClient, bucket) = createClientAndBucket
+      val lws2 = LinkWalkStep("bucket", "tag")
+      val walkAction = (bucket, obj) linkWalk lws --> lws2
+      val extractor = new WalkSpecExtractor
+      rawClient.linkWalk(MM.argThat(extractor)) returns createWalkResult()
+      walkAction.unsafePerformIO
+
+      extractor.argument must beSome.like {
+        case spec => spec.getStartKey must beEqualTo(testKey)
+      }
+    }
+
+    def testStartSteps = {
+      val (rawClient, bucket) = createClientAndBucket
+      val lws2 = LinkWalkStep("bucket", "tag")
+      val walkAction = (bucket, obj) linkWalk lws --> lws2
+      val extractor = new WalkSpecExtractor
+      rawClient.linkWalk(MM.argThat(extractor)) returns createWalkResult()
+      walkAction.unsafePerformIO
+
+      import scala.collection.JavaConverters._
+      extractor.argument must beSome.like {
+        case spec => {
+          val stepsIterator = spec.asScala
+          val stepsConverted = stepsIterator.toList map { step => LinkWalkStep(step.getBucket, step.getTag, step.getKeep) }
+          val actualAndExpected: List[(LinkWalkStep, LinkWalkStep)] = stepsConverted.zip(List(lws, lws2))
+          ((ae: (LinkWalkStep, LinkWalkStep)) => (ae._1 === ae._2) must beTrue).forall(actualAndExpected)
+        }
+      }
+    }
+
+    def testSimpleResults = {
+      val expectedValues = List(List("value1", "value2"), List("value3"), List("value4"))
+      val mockedValues = expectedValues.map { _.zipWithIndex map { vi => mockRiakObj(lwsBucket, vi._2.toString, vi._1.getBytes, "text/plain", "vclock") } }
+      val (rawClient, bucket) = createClientAndBucket
+      val walkAction = (bucket, obj) linkWalk lws
+      rawClient.linkWalk(MM.isA(classOf[LinkWalkSpec])) returns createWalkResult(mockedValues)
+
+      walkAction.unsafePerformIO.toList map { _.toList map { _.stringValue } } must haveTheSameElementsAs(expectedValues)
+    }
+    
+
+    case class TestDomainObject(key: String, value: String)
+    def testDomainResults = {
+      val failKey = "key4"
+      implicit val converter = ScaliakConverter.newConverter[TestDomainObject](
+        scObj => if (scObj.key === failKey) (new  Exception("conversion fail")).failNel else TestDomainObject(scObj.key, scObj.stringValue).successNel,
+        dObj => PartialScaliakObject(dObj.key, dObj.value.getBytes)
+      )
+      val expectedValues = List(List(TestDomainObject("key1", "value1"), TestDomainObject("key2", "value2")), List(TestDomainObject("key3", "value3")))
+      val mockedValues = expectedValues.map { _ map { dObj => mockRiakObj(lwsBucket, dObj.key, dObj.value.getBytes, "text/plain", "vclock") } }
+      val finalMockedValues = List(mockRiakObj(lwsBucket, failKey, "".getBytes, "text/plain", "vclock")) :: mockedValues
+      val (rawClient, bucket) = createClientAndBucket
+      val walkAction = (bucket, obj) linkWalk lws
+      rawClient.linkWalk(MM.isA(classOf[LinkWalkSpec])) returns createWalkResult(finalMockedValues)
+
+      walkAction.unsafePerformIO.toList map { _.toList } must haveTheSameElementsAs(expectedValues)
+    }
+
+    def createWalkResult(ls: List[List[IRiakObject]] = Nil) = {
+      import scala.collection.JavaConverters._
+      new WalkResult() {
+        def iterator() = (ls map { _.asJavaCollection }).asJava.iterator()
+      }
+    }
+
+    def createClientAndBucket: (RawClient, ScaliakBucket) = {
+      val rawClient = mock[RawClient]
+      val bucket = new ScaliakBucket(
+        rawClient = rawClient,
+        name = lwsBucket,
+        allowSiblings = false,
+        lastWriteWins = false,
+        nVal = 3,
+        backend = None,
+        smallVClock = 1,
+        bigVClock = 2,
+        youngVClock = 3,
+        oldVClock = 4,
+        precommitHooks = Nil,
+        postcommitHooks = Nil,
+        rVal = new Quorum(2),
+        wVal = new Quorum(2),
+        rwVal = new Quorum(0),
+        dwVal = new Quorum(0),
+        prVal = new Quorum(0),
+        pwVal = new Quorum(0),
+        basicQuorum = false,
+        notFoundOk = false,
+        chashKeyFunction = mock[NamedErlangFunction],
+        linkWalkFunction = mock[NamedErlangFunction],
+        isSearchable = false
+      )
+
+      (rawClient, bucket)
+    }
+
+  }
   // SPECS2 HACK TO ALLOW CALLING OF SCALAZ === WITHOUT AMBIGIOUS IMPLICITS
   override def canBeEqual[T](t: => T) = super.canBeEqual(t)
 
