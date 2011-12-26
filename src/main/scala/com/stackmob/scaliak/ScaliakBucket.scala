@@ -179,21 +179,26 @@ trait ScaliakConverters {
   )
 }
 
-trait ScaliakResolver[T] {
+sealed trait ScaliakResolver[T] {
 
-  def apply(siblings: NonEmptyList[ValidationNEL[Throwable, T]]): ValidationNEL[Throwable, T]
+  def apply(siblings: NonEmptyList[ValidationNEL[Throwable, T]]): ValidationNEL[Throwable, T]    
 
 }
 
-object ScaliakResolver {
+object ScaliakResolver extends ScaliakResolvers {
 
-  implicit def DefaultResolver[T] = new ScaliakResolver[T] {
+  implicit def DefaultResolver[T] = newResolver[T](
+   siblings =>
+     if (siblings.count == 1) siblings.head
+     else throw new UnresolvedConflictException(null, "there were siblings", siblings.list.asJavaCollection)
+  )
 
-    def apply(siblings: NonEmptyList[ValidationNEL[Throwable, T]]) =
-      if (siblings.count == 1) siblings.head
-      else throw new UnresolvedConflictException(null, "there were siblings", siblings.list.asJavaCollection)
+}
+
+trait ScaliakResolvers {
+  def newResolver[T](resolve: NonEmptyList[ValidationNEL[Throwable, T]] => ValidationNEL[Throwable, T]) = new ScaliakResolver[T] {
+    def apply(siblings: NonEmptyList[ValidationNEL[Throwable, T]]) = resolve(siblings)
   }
-
 }
 
 trait ScaliakMutation[T] {
