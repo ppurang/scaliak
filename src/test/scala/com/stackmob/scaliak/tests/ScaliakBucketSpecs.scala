@@ -146,7 +146,6 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     "By Domain Object"                                                              ^
       "Deletes the object by its key"                                               ! deleteDomainObject.test ^p^
     "If fetch before delete is true (defaults to false)"                            ^
-      "Uses the raw clients head function to fetch the object"                      ! skipped ^ //deleteWithFetchBefore.testCallsHead ^
       "Adds the returned vClock to the delete meta"                                 ! deleteWithFetchBefore.testAddsVclock ^
                                                                                     end
 
@@ -182,12 +181,6 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     mockHeadResponse.getVclock returns mockHeadVClock
     
     rawClient.head(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockHeadResponse
-    
-    def testCallsHead = {
-      result 
-      
-      there was one(rawClient).head(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta]))
-    }
     
     def testAddsVclock = {
       result
