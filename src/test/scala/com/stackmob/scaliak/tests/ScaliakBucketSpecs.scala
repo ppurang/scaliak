@@ -6,13 +6,13 @@ import scalaz._
 import Scalaz._
 import effects._
 import com.basho.riak.client.query.functions.NamedErlangFunction
-import com.basho.riak.client.IRiakObject
 import org.mockito.stubbing.OngoingStubbing
 import com.basho.riak.client.cap.{UnresolvedConflictException, VClock, Quorum}
 import org.mockito.{Matchers => MM}
 import com.stackmob.scaliak._
 import com.basho.riak.client.raw._
 import java.util.Date
+import com.basho.riak.client.{RiakLink, IRiakObject}
 
 /**
  * Created by IntelliJ IDEA.
@@ -44,16 +44,16 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
           "the returned object has a lastModified timestamp"                        ! skipped ^
           "the returned object has a content type"                                  ! simpleFetch.tContentType ^
           "if the fetched object has an empty list of links"                        ^
-            "links returns None"                                                    ! skipped ^
-            "hasLinks returns false"                                                ! skipped ^
-            "numLinks returns 0"                                                    ! skipped ^
-            "containsLink returns false for any link"                               ! skipped ^p^
+            "links returns None"                                                    ! simpleFetch.testEmptyLinksIsNone ^
+            "hasLinks returns false"                                                ! simpleFetch.testEmptyLinkHasLinksIsFalse ^
+            "numLinks returns 0"                                                    ! simpleFetch.testEmptyLinksReturnsZeroNumLinks ^
+            "containsLink returns false for any link"                               ! simpleFetch.testEmptyLinksContainsLinkReturnsFalse ^p^
           "if the fetched object has a non-empty list of links"                     ^
-            "links returns Some -- a non-empty list of links"                       ! skipped ^
-            "hasLinks returns some"                                                 ! skipped ^
-            "numLinks returns the number of links in the fetched object"            ! skipped ^
-            "containsLink returns true for a link that exists"                      ! skipped ^
-            "containsLink returns false for a link that does not exist"             ! skipped ^p^
+            "links returns Some -- a non-empty list of links converted to scaliak"  ! nonEmptyLinkFetch.testConvertedLinks ^
+            "hasLinks returns some"                                                 ! nonEmptyLinkFetch.testHasLinks ^
+            "numLinks returns the number of links in the fetched object"            ! nonEmptyLinkFetch.testNumLinks ^
+            "containsLink returns true for a link that exists"                      ! nonEmptyLinkFetch.testContainsLinkTrueIfContained ^
+            "containsLink returns false for a link that does not exist"             ! nonEmptyLinkFetch.testContainsLinkFalseIfNotContained ^p^
           "if the fetched object does not have metadata"                            ^
              "metadata returns an empty Map[String, String]"                        ! skipped ^
              "hasMetadata returns false"                                            ! skipped ^
@@ -506,7 +506,6 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     val testVClock = mock[VClock]
   }  
   
-
   object conflictedFetch extends context {
 
     val rawClient = mock[RawClient]
@@ -533,6 +532,50 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
         case e => ((_: Throwable) must beAnInstanceOf[UnresolvedConflictException]).forall(e.list)
       }
     }
+  }
+
+  object nonEmptyLinkFetch extends context {
+    val rawClient = mock[RawClient]
+    val bucket = createBucket
+
+    val links = (new RiakLink(testBucket, "somekey", "tag")) :: (new RiakLink(testBucket, "somekey", "tag")) :: Nil
+    val expectedLinks = links map { l => ScaliakLink(l.getBucket, l.getKey, l.getTag) }
+    val mockObj = mockRiakObj(testBucket, testKey, "value".getBytes, "text/plain", "vclock", links)
+
+    val mockResp = mockRiakResponse(Array(mockObj))
+
+    rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResp
+
+    lazy val result: Option[ScaliakObject] = {
+      val r: ValidationNEL[Throwable, Option[ScaliakObject]] = bucket.fetch(testKey).unsafePerformIO
+
+      r.toOption | None
+    }
+
+    def testConvertedLinks = {
+      result must beSome.like {
+        case obj => obj.links must beSome.like {
+          case links => links.list must haveTheSameElementsAs(expectedLinks)
+        }
+      }
+    }
+
+    def testNumLinks = {
+      result must beSome.which { _.numLinks == expectedLinks.length }
+    }
+    
+    def testHasLinks = {
+      result must beSome.which { _.hasLinks }
+    }
+
+    def testContainsLinkTrueIfContained = {
+      result must beSome.which { r => r.containsLink(expectedLinks.head) && r.containsLink(expectedLinks.tail.head) }
+    }
+
+    def testContainsLinkFalseIfNotContained = {
+      result must beSome.which { !_.containsLink(ScaliakLink("who", "cares", "shouldnt-match")) }
+    }
+
   }
 
   object simpleFetch extends context {
@@ -576,6 +619,29 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
 
     def tContentType = {
       result must beSome.which { _.contentType == testContentType }
+    }
+
+    def testEmptyLinksIsNone = {
+      result must beSome.like {
+        case obj => obj.links must beNone
+      }
+    }
+
+    def testEmptyLinkHasLinksIsFalse = {
+      result must beSome.which { !_.hasLinks }
+    }
+    
+    def testEmptyLinksReturnsZeroNumLinks = {
+      result must beSome.which { _.numLinks == 0 }
+    }
+    
+    def testEmptyLinksContainsLinkReturnsFalse = {
+      val link1 = ScaliakLink("who", "cares", "at all")
+      val link2 = ScaliakLink("because", "this-object", "has-no-links")
+      val Some(r) = result
+      val res1 = r.containsLink(link1)
+      val res2 = r.containsLink(link2)
+      List(res1, res2) must haveTheSameElementsAs(false :: false :: Nil)
     }
 
     def testConversionExplicit = {

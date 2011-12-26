@@ -3,9 +3,9 @@ package com.stackmob.scaliak
 import scalaz._
 import Scalaz._
 import com.basho.riak.client.cap.VClock
-import com.basho.riak.client.IRiakObject
 import com.basho.riak.client.builders.RiakObjectBuilder
 import com.basho.riak.client.http.util.{Constants => RiakConstants}
+import com.basho.riak.client.{RiakLink, IRiakObject}
 
 /**
  * Created by IntelliJ IDEA.
@@ -19,7 +19,8 @@ case class ScaliakObject(key: String,
                          contentType: String,
                          vClock: VClock,
                          vTag: Option[String],
-                         bytes: Array[Byte]) {
+                         bytes: Array[Byte],
+                         links: Option[NonEmptyList[ScaliakLink]] = none) {
 
   def vClockString = vClock.asString
 
@@ -28,9 +29,16 @@ case class ScaliakObject(key: String,
 
   def stringValue = new String(bytes)
 
+  def hasLinks = links.isDefined
+
+  def numLinks = (links map { _.count }) | 0
+
+  def containsLink(link: ScaliakLink) = (links map { _.list.contains(link) }) | false
+
 }
 
 object ScaliakObject {
+  import scala.collection.JavaConverters._
   implicit def IRiakObjectToScaliakObject(obj: IRiakObject): ScaliakObject = {
     ScaliakObject(
       key = obj.getKey,
@@ -38,7 +46,8 @@ object ScaliakObject {
       bucket = obj.getBucket,
       vClock = obj.getVClock,
       vTag = Option(obj.getVtag),
-      contentType = obj.getContentType
+      contentType = obj.getContentType,
+      links = (obj.getLinks.asScala map { l => l: ScaliakLink }).toList.toNel
     )
   }
   
@@ -77,4 +86,9 @@ object PartialScaliakObject {
     def _vTag = vTag
   }
   
+}
+
+case class ScaliakLink(bucket: String, key: String, tag: String)
+object ScaliakLink {
+  implicit def riakLinkToScaliakLink(link: RiakLink): ScaliakLink = ScaliakLink(link.getBucket, link.getKey, link.getTag)
 }
