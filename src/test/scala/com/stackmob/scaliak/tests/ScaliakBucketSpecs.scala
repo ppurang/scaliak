@@ -11,8 +11,8 @@ import com.basho.riak.client.cap.{UnresolvedConflictException, VClock, Quorum}
 import org.mockito.{Matchers => MM}
 import com.stackmob.scaliak._
 import com.basho.riak.client.raw._
-import java.util.Date
 import com.basho.riak.client.{RiakLink, IRiakObject}
+import java.util.Date
 
 /**
  * Created by IntelliJ IDEA.
@@ -40,7 +40,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
           "the returned object has a vclock"                                        ! simpleFetch.testVClock ^
           "calling vclockString returns the vclock as a string"                     ! simpleFetch.testVClockStr ^
           "the returned object has a vTag"                                          ! simpleFetch.testVTag ^
-          "the returned object has a lastModified timestamp"                        ! skipped ^
+          "the returned object has a lastModified timestamp"                        ! simpleFetch.testLastModified ^
           "the returned object has a content type"                                  ! simpleFetch.tContentType ^
           "if the fetched object has an empty list of links"                        ^
             "links returns None"                                                    ! simpleFetch.testEmptyLinksIsNone ^
@@ -595,7 +595,8 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     val mock1Bytes = Array[Byte](1, 2)
     val mock1VClockStr = "a vclock"
     val mock1VTag = "vtag"
-    val mockRiakObj1 = mockRiakObj(testBucket, testKey, mock1Bytes, testContentType, mock1VClockStr, vTag = mock1VTag)
+    val mock1LastModified = new java.util.Date(System.currentTimeMillis)
+    val mockRiakObj1 = mockRiakObj(testBucket, testKey, mock1Bytes, testContentType, mock1VClockStr, vTag = mock1VTag, lastModified = mock1LastModified)
 
     val singleObjectResponse = mockRiakResponse(Array(mockRiakObj1))
     
@@ -629,6 +630,12 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
 
     def testVTag = {
       result must beSome.which { _.vTag == mock1VTag }
+    }
+
+    def testLastModified = {
+      result must beSome.like {
+        case obj => obj.lastModified must_== mock1LastModified
+      }
     }
 
     def tContentType = {

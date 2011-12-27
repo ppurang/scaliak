@@ -20,8 +20,9 @@ case class ScaliakObject(key: String,
                          vClock: VClock,
                          bytes: Array[Byte],
                          vTag: String = "",
-                         links: Option[NonEmptyList[ScaliakLink]] = none) {
-
+                         links: Option[NonEmptyList[ScaliakLink]] = none,
+                         lastModified: java.util.Date = new java.util.Date(System.currentTimeMillis)) {
+  
   def vClockString = vClock.asString
 
   // TODO: probably should move, leaving for now since its used in a bunch of places
@@ -47,6 +48,7 @@ object ScaliakObject {
       vClock = obj.getVClock,
       vTag = ~(Option(obj.getVtag)),
       contentType = obj.getContentType,
+      lastModified = obj.getLastModified,
       links = (obj.getLinks.asScala map { l => l: ScaliakLink }).toList.toNel
     )
   }
