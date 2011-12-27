@@ -6,7 +6,6 @@ import org.specs2._
 import mock._
 import com.basho.riak.client.{RiakLink, IRiakObject}
 import scala.collection.JavaConverters._
-import java.util.Date
 
 /**
  * Created by IntelliJ IDEA.
@@ -23,8 +22,9 @@ trait MockRiakUtils {
                   value: Array[Byte],
                   contentType: String,
                   vClockStr: String,
-                  links: List[RiakLink] = List(), 
-                  vTag: String = "",
+                  links: List[RiakLink] = List(),
+                  metadata: Map[String, String] = Map(),
+                  vTag: String = "",   
                   lastModified: java.util.Date = new java.util.Date(System.currentTimeMillis)): IRiakObject = {
 
     val mocked = mock[IRiakObject]
@@ -39,6 +39,7 @@ trait MockRiakUtils {
     mocked.getLinks returns links.asJava
     mocked.getVtag returns vTag
     mocked.getLastModified returns lastModified
+    mocked.getMeta returns metadata.asJava
 
     mocked
   }

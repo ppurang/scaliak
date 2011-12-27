@@ -21,6 +21,7 @@ case class ScaliakObject(key: String,
                          bytes: Array[Byte],
                          vTag: String = "",
                          links: Option[NonEmptyList[ScaliakLink]] = none,
+                         metadata: Map[String, String] = Map(),
                          lastModified: java.util.Date = new java.util.Date(System.currentTimeMillis)) {
   
   def vClockString = vClock.asString
@@ -36,6 +37,12 @@ case class ScaliakObject(key: String,
 
   def containsLink(link: ScaliakLink) = (links map { _.list.contains(link) }) | false
 
+  def hasMetadata = !metadata.isEmpty
+
+  def containsMetadata(key: String) = metadata.contains(key)
+
+  def getMetadata(key: String) = metadata.get(key)
+
 }
 
 object ScaliakObject {
@@ -49,7 +56,8 @@ object ScaliakObject {
       vTag = ~(Option(obj.getVtag)),
       contentType = obj.getContentType,
       lastModified = obj.getLastModified,
-      links = (obj.getLinks.asScala map { l => l: ScaliakLink }).toList.toNel
+      links = (obj.getLinks.asScala map { l => l: ScaliakLink }).toList.toNel,
+      metadata = obj.getMeta.asScala.toMap
     )
   }
   

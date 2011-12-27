@@ -54,19 +54,17 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
             "containsLink returns true for a link that exists"                      ! nonEmptyLinkFetch.testContainsLinkTrueIfContained ^
             "containsLink returns false for a link that does not exist"             ! nonEmptyLinkFetch.testContainsLinkFalseIfNotContained ^p^
           "if the fetched object does not have metadata"                            ^
-             "metadata returns an empty Map[String, String]"                        ! skipped ^
-             "hasMetadata returns false"                                            ! skipped ^
-             "containsMetadata returns false for any key"                           ! skipped ^
-             "getMetadata returns None for any key"                                 ! skipped ^
-             "metedataEntries returns an empty iterable"                            ! skipped ^p^
+             "metadata returns an empty Map[String, String]"                        ! simpleFetch.testEmptyMetadataMap ^
+             "hasMetadata returns false"                                            ! simpleFetch.testEmptyMetadataHasMetadataReturnsFalse ^
+             "containsMetadata returns false for any key"                           ! simpleFetch.testEmptyMetadataContainsMetadataReturnsFalse ^
+             "getMetadata returns None for any key"                                 ! simpleFetch.testEmptyMetadataGetReturnsNone ^
           "if the fetched object has metadata"                                      ^
-             "metadata returns a Map[String, String] w/ data from fetched obj"      ! skipped ^
-             "hasMetadata returns true"                                             ! skipped ^
-             "containsMetadata returns true for a key in the metadata map"          ! skipped ^
-             "containsMetadata returns false for a key in the metadata map"         ! skipped ^
-             "getMetadata returns Some containing the string if key exists"         ! skipped ^
-             "getMetadata returns None if key does not exist"                       ! skipped ^
-             "metadataEntries returns an iterable of all values in the map"         ! skipped ^p^
+             "metadata returns a Map[String, String] w/ data from fetched obj"      ! nonEmptyMetadataFetch.testHasCorrectMetadata ^
+             "hasMetadata returns true"                                             ! nonEmptyMetadataFetch.testHasMetadataIsTrue ^
+             "containsMetadata returns true for a key in the metadata map"          ! nonEmptyMetadataFetch.testContainsMetadataForExistingKey ^
+             "containsMetadata returns false for a key in the metadata map"         ! nonEmptyMetadataFetch.testContainsMetadataForMissingKey ^
+             "getMetadata returns Some containing the string if key exists"         ! nonEmptyMetadataFetch.testGetMetadataForExistingKey ^
+             "getMetadata returns None if key does not exist"                       ! nonEmptyMetadataFetch.testGetMetadataForMissingKey ^p^
           "if the fetched object does not have bin indexes"                         ^p^
           "if the fetched object has bin indexes"                                   ^p^
           "if the fetched object does not have int indexes"                         ^p^
@@ -543,6 +541,52 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     }
   }
 
+  object nonEmptyMetadataFetch extends context {
+    val rawClient = mock[RawClient]
+    val bucket = createBucket
+
+    val metadata = Map("m1" -> "v1", "m2" -> "v2")
+    val mockObj = mockRiakObj(testBucket, testKey, "value".getBytes, "text/plain", "vclock", metadata = metadata)
+    val mockResp = mockRiakResponse(Array(mockObj))
+    
+    rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResp
+
+    lazy val result: Option[ScaliakObject] = {
+      val r: ValidationNEL[Throwable, Option[ScaliakObject]] = bucket.fetch(testKey).unsafePerformIO
+
+      r.toOption | None
+    }
+
+    def testHasCorrectMetadata = {
+      result must beSome.which { _.metadata == metadata }
+    }
+    
+    def testHasMetadataIsTrue = {
+      result must beSome.which { _.hasMetadata }
+    }
+    
+    def testContainsMetadataForExistingKey = {
+      result must beSome.which { o => o.containsMetadata(metadata.keys.head) && o.containsMetadata(metadata.keys.tail.head) }
+    }
+    
+    def testContainsMetadataForMissingKey = {
+      result must beSome.which { !_.containsMetadata("dne") }
+    }
+    
+    def testGetMetadataForExistingKey = {
+      result must beSome.like {
+        case o =>((_:Option[String]) must beSome).forall(o.getMetadata(metadata.keys.head) :: o.getMetadata(metadata.keys.tail.head) :: Nil)
+      }
+    }
+
+    def testGetMetadataForMissingKey = {
+      result must beSome.which {
+        !_.getMetadata("dne").isDefined
+      }
+    }
+        
+  }
+
   object nonEmptyLinkFetch extends context {
     val rawClient = mock[RawClient]
     val bucket = createBucket
@@ -663,6 +707,30 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       val res1 = r.containsLink(link1)
       val res2 = r.containsLink(link2)
       List(res1, res2) must haveTheSameElementsAs(false :: false :: Nil)
+    }
+
+    def testEmptyMetadataMap = {
+      result must beSome.like {
+        case obj => obj.metadata must beEmpty
+      }
+    }
+    
+    def testEmptyMetadataHasMetadataReturnsFalse = {
+      result must beSome.which { !_.hasMetadata }
+    }
+    
+    def testEmptyMetadataContainsMetadataReturnsFalse = {
+      val Some(r) = result
+      val res1 = r.containsMetadata("m1")
+      val res2 = r.containsMetadata("m2")
+      List(res1, res2) must haveTheSameElementsAs(false :: false :: Nil)
+    }
+    
+    def testEmptyMetadataGetReturnsNone = {
+      val Some(r) = result
+      val res1 = r.getMetadata("m1")
+      val res2 = r.getMetadata("m2")
+      List(res1, res2) must haveTheSameElementsAs(None :: None :: Nil)
     }
 
     def testConversionExplicit = {
