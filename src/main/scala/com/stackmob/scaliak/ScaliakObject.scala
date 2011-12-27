@@ -18,8 +18,8 @@ case class ScaliakObject(key: String,
                          bucket: String,
                          contentType: String,
                          vClock: VClock,
-                         vTag: Option[String],
                          bytes: Array[Byte],
+                         vTag: String = "",
                          links: Option[NonEmptyList[ScaliakLink]] = none) {
 
   def vClockString = vClock.asString
@@ -45,7 +45,7 @@ object ScaliakObject {
       bytes = obj.getValue,
       bucket = obj.getBucket,
       vClock = obj.getVClock,
-      vTag = Option(obj.getVtag),
+      vTag = ~(Option(obj.getVtag)),
       contentType = obj.getContentType,
       links = (obj.getLinks.asScala map { l => l: ScaliakLink }).toList.toNel
     )
@@ -56,7 +56,7 @@ object ScaliakObject {
       withContentType obj.contentType 
       withVClock obj.vClock
       withValue obj.getBytes)
-    obj.vTag foreach { base withVtag  _ }
+    if (obj.vTag.isEmpty) base withVtag obj.vTag else base withVtag null
     base.build()
   }
 }
@@ -65,7 +65,6 @@ sealed trait PartialScaliakObject {
   import scala.collection.JavaConverters._
 
   def _key: String
-  def _vTag: Option[String]
   def _bytes: Array[Byte]
   def _contentType: Option[String]
   def _links: Option[NonEmptyList[ScaliakLink]]
@@ -76,8 +75,7 @@ sealed trait PartialScaliakObject {
       withContentType (_contentType | RiakConstants.CTYPE_TEXT_UTF8)
       withValue _bytes
       withLinks ((_links map { _.list map { l => new RiakLink(l.bucket, l.key, l.tag) }}) | Nil).asJavaCollection
-      withVtag (_vTag | null)).build()
-
+    ).build()
   }
 }
 
@@ -86,12 +84,10 @@ object PartialScaliakObject {
   def apply(key: String, 
             value: Array[Byte], 
             contentType: String = RiakConstants.CTYPE_TEXT_UTF8, 
-            links: Option[NonEmptyList[ScaliakLink]] = none,
-            vTag: Option[String] = none) = new PartialScaliakObject {
+            links: Option[NonEmptyList[ScaliakLink]] = none) = new PartialScaliakObject {
     def _key = key
     def _bytes = value
     def _contentType = Option(contentType)
-    def _vTag = vTag
     def _links = links
   }
   

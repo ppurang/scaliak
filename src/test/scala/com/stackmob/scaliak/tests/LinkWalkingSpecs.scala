@@ -161,7 +161,6 @@ class LinkWalkingSpecs extends Specification with Mockito with util.MockRiakUtil
       lwsBucket,
       testContentType,
       mockVClock,
-      None,
       "".getBytes
     )
 

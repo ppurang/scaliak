@@ -17,7 +17,13 @@ import scala.collection.JavaConverters._
 trait MockRiakUtils {
   this: Specification with Mockito =>
 
-  def mockRiakObj(bucket: String, key: String, value: Array[Byte], contentType: String, vClockStr: String, links: List[RiakLink] = List()): IRiakObject = {
+  def mockRiakObj(bucket: String,
+                  key: String,
+                  value: Array[Byte],
+                  contentType: String,
+                  vClockStr: String,
+                  links: List[RiakLink] = List(), vTag: String = ""): IRiakObject = {
+
     val mocked = mock[IRiakObject]
     val mockedVClock = mock[VClock]
     mockedVClock.asString returns vClockStr
@@ -28,6 +34,7 @@ trait MockRiakUtils {
     mocked.getVClock returns mockedVClock
     mocked.getContentType returns contentType    
     mocked.getLinks returns links.asJava
+    mocked.getVtag returns vTag
 
     mocked
   }

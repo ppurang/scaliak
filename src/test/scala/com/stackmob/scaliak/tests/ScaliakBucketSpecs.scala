@@ -39,8 +39,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
           "the returned object has the same bucket name as the one used to fetch it"! simpleFetch.testBucketName ^
           "the returned object has a vclock"                                        ! simpleFetch.testVClock ^
           "calling vclockString returns the vclock as a string"                     ! simpleFetch.testVClockStr ^
-          "if fetched object's vtag is set calling vTag returns Some w/ the vtag"   ! skipped ^
-          "if fetched object's vtag is not set calling vTag returns None"           ! skipped ^
+          "the returned object has a vTag"                                          ! simpleFetch.testVTag ^
           "the returned object has a lastModified timestamp"                        ! skipped ^
           "the returned object has a content type"                                  ! simpleFetch.tContentType ^
           "if the fetched object has an empty list of links"                        ^
@@ -211,7 +210,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     val rawClient = mock[RawClient]
     val bucket = createBucket
 
-    val obj = ScaliakObject(testKey, testBucket, testContentType, mock[VClock], None, "".getBytes)
+    val obj = ScaliakObject(testKey, testBucket, testContentType, mock[VClock], "".getBytes)
     lazy val result = bucket.delete(obj).unsafePerformIO
 
     def test = {
@@ -439,7 +438,6 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       testBucket,
       testContentType,
       mockVClock,
-      None,
       "".getBytes,
       links = nel(ScaliakLink("test", "test", "test")).some
     )
@@ -596,7 +594,8 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
 
     val mock1Bytes = Array[Byte](1, 2)
     val mock1VClockStr = "a vclock"
-    val mockRiakObj1 = mockRiakObj(testBucket, testKey, mock1Bytes, testContentType, mock1VClockStr)
+    val mock1VTag = "vtag"
+    val mockRiakObj1 = mockRiakObj(testBucket, testKey, mock1Bytes, testContentType, mock1VClockStr, vTag = mock1VTag)
 
     val singleObjectResponse = mockRiakResponse(Array(mockRiakObj1))
     
@@ -626,6 +625,10 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
 
     def testVClockStr = {
       result must beSome.which { _.vClockString == mock1VClockStr }
+    }
+
+    def testVTag = {
+      result must beSome.which { _.vTag == mock1VTag }
     }
 
     def tContentType = {

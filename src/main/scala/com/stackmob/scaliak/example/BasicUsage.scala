@@ -30,7 +30,7 @@ object BasicUsage extends App {
   // for now this is the only place where null is allowed, because this is not
   // the suggested interface an exception is made. In this case we are storing an object
   // that only exists in memory so we have no vclock.
-  val obj = new ScaliakObject(key, bucket.name, "text/plain", null, none, "test value".getBytes)
+  val obj = new ScaliakObject(key, bucket.name, "text/plain", null, "test value".getBytes)
   bucket.store(obj).unsafePerformIO  
 
   // fetch an object with no conversion
