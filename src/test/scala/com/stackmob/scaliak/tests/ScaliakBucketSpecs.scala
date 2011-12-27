@@ -124,6 +124,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
           "Writes the ScaliakObject as returned from the mutator"                   ! writeExisting.customMutator ^
                                                                                     p^p^
       "Can update the links on an object"                                           ! writeExisting.testUpdateLinks ^
+      "Can update the metadata on an object"                                        ! writeExisting.testUpdateMetadata ^
                                                                                     p^
     "With Conversion"                                                               ^
       "When the Key Being Fetched Does Not Exist"                                   ^
@@ -148,6 +149,8 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       "Adds the returned vClock to the delete meta"                                 ! deleteWithFetchBefore.testAddsVclock ^
                                                                                     end
 
+
+  // TODO: updating metadata
 
   class DummyDomainObject(val someField: String)
   val dummyWriteVal = "dummy"
@@ -288,6 +291,15 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       
       extractor.argument must beSome.like {
         case obj => obj.getLinks.toArray must haveSize(testStoreObject.numLinks)
+      }
+    }
+    
+    def testUpdateMetadata = {
+      import scala.collection.JavaConverters._
+      result // execute call
+      
+      extractor.argument must beSome.like {
+        case obj => obj.getMeta.asScala.toMap must beEqualTo(testStoreObject.metadata)
       }
     }
 
@@ -437,7 +449,8 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       testContentType,
       mockVClock,
       "".getBytes,
-      links = nel(ScaliakLink("test", "test", "test")).some
+      links = nel(ScaliakLink("test", "test", "test")).some,
+      metadata = Map("m1" -> "v1", "m2" -> "v2")
     )
 
     class IRiakObjExtractor extends util.MockitoArgumentExtractor[IRiakObject]

@@ -175,7 +175,7 @@ trait ScaliakConverters {
   lazy val PassThroughConverter = newConverter[ScaliakObject](
     (o =>
       o.successNel[Throwable]),
-    (o => PartialScaliakObject(o.key, o.bytes, o.contentType, o.links))
+    (o => PartialScaliakObject(o.key, o.bytes, o.contentType, o.links, o.metadata))
   )
 }
 

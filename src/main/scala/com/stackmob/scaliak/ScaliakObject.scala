@@ -78,6 +78,7 @@ sealed trait PartialScaliakObject {
   def _bytes: Array[Byte]
   def _contentType: Option[String]
   def _links: Option[NonEmptyList[ScaliakLink]]
+  def _metadata: Map[String, String]
 
   def asRiak(bucket: String, vClock: VClock): IRiakObject = {
     (RiakObjectBuilder.newBuilder(bucket, _key)
@@ -85,6 +86,7 @@ sealed trait PartialScaliakObject {
       withContentType (_contentType | RiakConstants.CTYPE_TEXT_UTF8)
       withValue _bytes
       withLinks ((_links map { _.list map { l => new RiakLink(l.bucket, l.key, l.tag) }}) | Nil).asJavaCollection
+      withUsermeta _metadata.asJava
     ).build()
   }
 }
@@ -94,11 +96,13 @@ object PartialScaliakObject {
   def apply(key: String, 
             value: Array[Byte], 
             contentType: String = RiakConstants.CTYPE_TEXT_UTF8, 
-            links: Option[NonEmptyList[ScaliakLink]] = none) = new PartialScaliakObject {
+            links: Option[NonEmptyList[ScaliakLink]] = none,
+            metadata: Map[String, String] = Map()) = new PartialScaliakObject {
     def _key = key
     def _bytes = value
     def _contentType = Option(contentType)
     def _links = links
+    def _metadata = metadata
   }
   
 }
