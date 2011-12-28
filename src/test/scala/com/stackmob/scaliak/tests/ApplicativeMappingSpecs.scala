@@ -48,6 +48,7 @@ class ApplicativeMappingSpecs extends Specification with Mockito { def is =
                                                                                     endp^
   "Sanity Checking & Examples"                                                      ^
     "Key & Value using applicative builders"                                        ! examples.testKeyValueApplicative ^
+    "Key & Value lifting a Function2"                                               ! examples.testKeyValueLift ^
                                                                                     end
   //"Function Lifting Utilities"
   // metadata as an entire map (support for existing or not, and just making it an option)
@@ -65,6 +66,12 @@ class ApplicativeMappingSpecs extends Specification with Mockito { def is =
       val falsePreds = !((riakKey(_.length == testKey.length + 1)(testObject) |@| stringValue(_.length == testValue.length + 1)(testObject)) { DomainObject1 }).toOption.isDefined
       val trueFalsePreds = !((riakKey(_.length == testKey.length)(testObject) |@| stringValue(_.length == testValue.length + 1)(testObject)) { DomainObject1 }).toOption.isDefined
       ((_:Boolean) must beTrue).forall(falsePreds :: trueFalsePreds :: truePreds :: noPreds :: noPreds2 :: Nil)
+    }
+    
+    
+    def testKeyValueLift = {
+      val mbDomain = (DomainObject2.fromScaliak(riakKey(), bytesValue())(testObject)).toOption
+      mbDomain must beSome.which { o => o.key == testKey && new String(o.value) == testValue }
     }
   }
 
