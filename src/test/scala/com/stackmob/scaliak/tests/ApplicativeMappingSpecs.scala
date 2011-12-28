@@ -37,11 +37,21 @@ class ApplicativeMappingSpecs extends Specification with Mockito { def is =
         "Can read the byteValue with no predicate and always return success"        ! valueBytes.testNoPredicate ^
         "Reading the byteValue with a true predicate returns success"               ! valueBytes.testTruePredicate ^
         "Reading the byteValue with a false predicate returns failure"              ! valueBytes.testFalsePredicate ^
+                                                                                    p^p^
+    "Handling Metadata by Key"                                                      ^
+      "if the metadata key exists"                                                  ^
+        "returns success with the value if no predicate is given"                   ! metadata.testKeyExistsNoPred ^
+        "returns success with the value if predicate is true"                       ! metadata.testKeyExistsTruePred ^
+        "returns failure with a MetadataMappingError if predicate is false"         ! metadata.testKeyExistsMissingPred ^p^
+      "if the metadata key does not exist"                                          ^
+        "returns failure with MissingMetadataMappingError no matter the predicate"  ! metadata.testKeyMissing ^
                                                                                     endp^
   "Sanity Checking & Examples"                                                      ^
     "Key & Value using applicative builders"                                        ! examples.testKeyValueApplicative ^
                                                                                     end
   //"Function Lifting Utilities"
+  // metadata as an entire map (support for existing or not, and just making it an option)
+
   import com.stackmob.scaliak.mapping._
 
   object examples {
@@ -57,7 +67,42 @@ class ApplicativeMappingSpecs extends Specification with Mockito { def is =
       ((_:Boolean) must beTrue).forall(falsePreds :: trueFalsePreds :: truePreds :: noPreds :: noPreds2 :: Nil)
     }
   }
-  
+
+  object metadata {
+    case class DomainObject(something: String)
+
+    val mKey = "m1"
+    val mVal = "v1"
+    val obj = testObject.copy(metadata = Map(mKey -> mVal))
+
+    def testKeyExistsNoPred = {
+      (riakMetadata(mKey)(obj) map { DomainObject(_) }).toOption must beSome.which { _.something == mVal }
+    }
+    
+    def testKeyExistsTruePred = {
+      (riakMetadata(mKey, _ => true)(obj) map { DomainObject(_) }).toOption must beSome.which { _.something == mVal }
+    }
+    
+    def testKeyExistsMissingPred = {
+      (riakMetadata(mKey, _ => false)(obj) map { DomainObject(_) }).either must beLeft.like {
+        case errors => errors.list must haveSize(1) and have((t: Throwable) => {
+          val e = t.asInstanceOf[MetadataMappingError]
+          (e.value, e.key) must_== (mVal, mKey)
+        })
+      }
+    }
+    
+    def testKeyMissing = {
+      (riakMetadata("missing", _ => true)(obj) map { DomainObject(_) }).either must beLeft.like {
+        case errors => errors.list must haveSize(1) and have((t: Throwable) => {
+          val e = t.asInstanceOf[MissingMetadataMappingError]
+          e.key must beEqualTo("missing")
+        })
+      }
+    }
+
+  }
+
   object valueBytes {
     case class DomainObject(value: Array[Byte])
     
