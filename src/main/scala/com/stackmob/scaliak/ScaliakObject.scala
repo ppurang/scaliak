@@ -43,6 +43,14 @@ case class ScaliakObject(key: String,
 
   def getMetadata(key: String) = metadata.get(key)
 
+  def addMetadata(key: String, value: String): ScaliakObject = copy(metadata = metadata + (key -> value))
+
+  def addMetadata(kv: (String, String)): ScaliakObject = addMetadata(kv._1, kv._2)
+
+  def mergeMetadata(newMeta: Map[String, String]) = copy(metadata = metadata ++ newMeta)
+
+  def removeMetadata(key: String) = copy(metadata = metadata - key)
+
 }
 
 object ScaliakObject {
