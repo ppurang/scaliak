@@ -29,6 +29,12 @@ package object mapping {
       MissingMetadataMappingError(key).failNel
     }
 
+  implicit def Func1Lift[A, T](f: A => T) = new {
+    def fromScaliak(f1: ScaliakObject => ValidationNEL[Throwable, A]): ScaliakObject => ValidationNEL[Throwable, T] = {
+      (obj: ScaliakObject) => (f1(obj) map f)
+    }
+  }
+
   implicit def Func2Lift[A, B, T](f: (A, B) => T) = new {
     def fromScaliak(f1: ScaliakObject => ValidationNEL[Throwable, A],
                     f2: ScaliakObject => ValidationNEL[Throwable, B]): ScaliakObject => ValidationNEL[Throwable, T] = {
