@@ -1,7 +1,9 @@
 package com.stackmob.scaliak.tests
 
 import org.specs2._
-import com.stackmob.scaliak.ScaliakObject
+import scalaz._
+import Scalaz._
+import com.stackmob.scaliak.{ScaliakLink, ScaliakObject}
 
 /**
  * Created by IntelliJ IDEA.
@@ -23,8 +25,17 @@ class ScaliakObjectSpecs extends Specification { def is =
       "can add the pair passing in a key, string pair"                              ! testAddKeyValPair ^p^
     "Can merge a map into the existing metadata"                                    ! testMerge ^
     "Can remove an existing key from the metadata map"                              ! removeMeta ^
+                                                                                    endp^
+  "Updating Links"                                                                  ^
+    "Adding Links"                                                                  ^
+      "Can pass in a ScaliakLink"                                                   ! testAddSingleLink1 ^
+      "Can pass in a sequence of ScaliakLink instances"                             ! testAddLinksSequence ^
+      "Can pass in a bucket, key, and tag"                                          ! testAddSingleLink2 ^p^
+    "Removing Links"                                                                ^
+      "Can remove a single link passing in an instance of ScaliakLink"              ! testRemoveLinkInstance ^
+      "Can remove a single link passing in a bucket, key, and tag"                  ! testRemoveLinkByBucketKeyTag ^
+      "Can remove links by just passing in a tag"                                   ! testRemoveLinksByTag ^
                                                                                     end
-
 
   def testAddKeyVal = {
     testObject.addMetadata("a", "b").metadata must havePair("a" -> "b")
@@ -42,14 +53,50 @@ class ScaliakObjectSpecs extends Specification { def is =
   def removeMeta = {
     testObject.removeMetadata(existingMetadataKey).metadata must beEmpty
   }
-  
+
+  def testAddSingleLink1 = {
+    val newLink = ScaliakLink("bucket", "key3", "tag")
+    val newLinks = ~((testObject addLink newLink).links map { _.list })
+    val existingLinks = ~(testObject.links map { _.list })
+    newLinks must haveTheSameElementsAs(newLink :: existingLinks)
+  }
+
+  def testAddSingleLink2 = {
+    val newLinks = ~((testObject.addLink("bucket", "key3", "tag")).links map { _.list })
+    val existingLinks = ~(testObject.links map { _.list })
+    newLinks must haveTheSameElementsAs(ScaliakLink("bucket", "key3", "tag") :: existingLinks)
+  }
+
+  def testAddLinksSequence = {
+    val newScLinks = ScaliakLink("bucket", "key3", "tag") :: ScaliakLink("bucket", "key4", "tag") :: Nil
+    val newLinks = ~((testObject.addLinks(newScLinks)).links map { _.list })
+    val existingLinks = ~(testObject.links map { _.list })
+    newLinks must haveTheSameElementsAs(newScLinks ++ existingLinks)
+  }
+
+  def testRemoveLinkInstance = {
+    val newObj = testObject removeLink ScaliakLink("bucket", "key1", "tag")
+    ~(newObj.links map { _.list }) must haveSize(~(testObject.links map { _.count }) - 1)
+  }
+
+  def testRemoveLinkByBucketKeyTag = {
+    val newObj = testObject.removeLink("bucket", "key1", "tag")
+    ~(newObj.links map { _.list }) must haveSize(~(testObject.links map { _.count }) - 1)
+  }
+
+  def testRemoveLinksByTag = {
+    val newObj = testObject removeLinks "tag"
+    newObj.links must beNone
+  }
+
   val existingMetadataKey = "m1"
   val existingMetadataVal = "v1"
   val testObject = ScaliakObject(
     "key", 
     "bucket", "text/plain", 
     null, "".getBytes, 
-    metadata = Map(existingMetadataKey -> existingMetadataVal)
+    metadata = Map(existingMetadataKey -> existingMetadataVal),
+    links = nel(ScaliakLink("bucket", "key1", "tag"), ScaliakLink("bucket", "key2", "tag")).some
   )
 
 }

@@ -37,6 +37,18 @@ case class ScaliakObject(key: String,
 
   def containsLink(link: ScaliakLink) = (links map { _.list.contains(link) }) | false
 
+  def addLink(link: ScaliakLink): ScaliakObject = copy(links = (link :: ~(links map { _.list })).toNel)
+  
+  def addLink(bucket: String, key: String, tag: String): ScaliakObject = addLink(ScaliakLink(bucket, key, tag))
+  
+  def addLinks(ls: Seq[ScaliakLink]) = copy(links = (ls ++ ~(links map { _.list })).toList.toNel)
+  
+  def removeLink(link: ScaliakLink): ScaliakObject = copy(links = (~(links map { _.list filter { _ === link } })).toNel)
+
+  def removeLink(bucket: String, key: String, tag: String): ScaliakObject = removeLink(ScaliakLink(bucket, key, tag))
+
+  def removeLinks(tag: String) = copy(links = (~(links map { _.list filterNot { _.tag === tag } })).toNel)
+
   def hasMetadata = !metadata.isEmpty
 
   def containsMetadata(key: String) = metadata.contains(key)
@@ -118,4 +130,6 @@ object PartialScaliakObject {
 case class ScaliakLink(bucket: String, key: String, tag: String)
 object ScaliakLink {
   implicit def riakLinkToScaliakLink(link: RiakLink): ScaliakLink = ScaliakLink(link.getBucket, link.getKey, link.getTag)
+  
+  implicit def ScaliakLinkEqual: Equal[ScaliakLink] = equalA
 }
