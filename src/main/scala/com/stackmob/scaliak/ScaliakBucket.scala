@@ -161,10 +161,9 @@ class ScaliakBucket(rawClient: RawClient,
 
 trait ScaliakConverter[T] {
   type ReadResult[T] = ValidationNEL[Throwable, T]
-  def read: ScaliakObject => ReadResult[T]
+  def read(o: ScaliakObject): ReadResult[T]
 
-  def write: T => PartialScaliakObject
-
+  def write(o: T): PartialScaliakObject
 }
 
 
@@ -176,8 +175,8 @@ trait ScaliakConverters {
 
   def newConverter[T](r: ScaliakObject => ValidationNEL[Throwable, T], 
                       w: T => PartialScaliakObject) = new ScaliakConverter[T] {
-    def read = r
-    def write = w
+    def read(o: ScaliakObject) = r(o)
+    def write(o: T) = w(o)
   }
   
   lazy val PassThroughConverter = newConverter[ScaliakObject](
