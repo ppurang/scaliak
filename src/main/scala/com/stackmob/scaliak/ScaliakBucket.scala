@@ -145,7 +145,7 @@ class ScaliakBucket(rawClient: RawClient,
                              (implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): ValidationNEL[Throwable, Option[T]] = {
     ((r.getRiakObjects map { converter.read(_) }).toList.toNel map { sibs =>
       resolver(sibs)
-    }).traverse[ScaliakConverter[T]#ReadResult, T](identity(_))
+    }).sequence[ScaliakConverter[T]#ReadResult, T]
   }
 
   private def prepareDeleteMeta(mbResponse: Option[RiakResponse], deleteMetaBuilder: DeleteMeta.Builder) = {
