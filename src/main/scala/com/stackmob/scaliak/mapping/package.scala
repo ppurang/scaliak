@@ -29,6 +29,11 @@ package object mapping {
       MissingMetadataMappingError(key).failNel
     }
 
+  private[mapping] def readValue[T](name: String, pf: T => Boolean, vf: ScaliakObject => T, obj: ScaliakObject): ValidationNEL[Throwable, T] = {
+    val value = vf(obj)
+    if (pf(value)) value.successNel else (MappingError(name, value)).failNel
+  }
+
   implicit def Func1Lift[A, T](f: A => T) = new {
     def fromScaliak(f1: ScaliakObject => ValidationNEL[Throwable, A]): ScaliakObject => ValidationNEL[Throwable, T] = {
       (obj: ScaliakObject) => (f1(obj) map f)
@@ -91,10 +96,5 @@ package object mapping {
       obj => (f1(obj) |@| f2(obj) |@| f3(obj) |@| f4(obj) |@| f5(obj) |@| f6(obj) |@| f7(obj))(f)
     }
   }
-
-  private[mapping] def readValue[T](name: String, pf: T => Boolean, vf: ScaliakObject => T, obj: ScaliakObject): ValidationNEL[Throwable, T] = {
-    val value = vf(obj)
-    if (pf(value)) value.successNel else (MappingError(name, value)).failNel
-  } 
     
 }
