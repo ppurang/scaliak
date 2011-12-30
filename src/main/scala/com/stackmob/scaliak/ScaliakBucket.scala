@@ -74,6 +74,8 @@ class ScaliakBucket(rawClient: RawClient,
     // it causes two calls to converter.write.
     // Instead force domain objects to implement a simple
     // interface exposing there key
+    // can also make it part of the scaliak converter interface
+    // and remove it from PartialScaliakObject (change ParitalScaliakObject to ScaliakSerializable)
     val key = converter.write(obj)._key
     (for {
       resp <- rawFetch(key)
@@ -88,6 +90,12 @@ class ScaliakBucket(rawClient: RawClient,
     }) except { t => t.failNel.pure[IO] }
   }
 
+  // r - int
+  // pr - int
+  // w - int
+  // dw - int
+  // pw - int
+  // rw - int
   def delete[T](obj: T, fetchBefore: Boolean = false)
                (implicit converter: ScaliakConverter[T]): IO[Validation[Throwable, Unit]] = {
     deleteByKey(converter.write(obj)._key, fetchBefore)
@@ -150,8 +158,8 @@ class ScaliakBucket(rawClient: RawClient,
 
 }
 
-// TODO: change Throwable to ConversionError
-sealed trait ScaliakConverter[T] {
+
+trait ScaliakConverter[T] {
   type ReadResult[T] = ValidationNEL[Throwable, T]
   def read: ScaliakObject => ReadResult[T]
 
