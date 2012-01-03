@@ -12,7 +12,6 @@ import com.stackmob.scaliak.{ScaliakConverter, ScaliakResolver, ScaliakObject, S
  * Time: 11:16 PM
  */
 
-
 sealed trait LinkWalkStep extends LinkWalkStepOperators {
   def bucket: String
   def tag: String
@@ -41,6 +40,19 @@ object LinkWalkStep {
   implicit def LinkWalkStepEqual: Equal[LinkWalkStep] =
     equal((s1, s2) => s1.bucket === s2.bucket && s1.tag === s2.tag && s1.accumulate == s2.accumulate)
   
+}
+
+sealed trait LinkWalkResult {
+  def bucket:String
+  def obj:ScaliakObject
+  def convert[T](implicit c:ScaliakConverter[T]):ValidationNEL[Throwable, T] = c.read(obj)
+}
+
+object LinkWalkResult {
+  def apply(b:String, o:ScaliakObject) = new LinkWalkResult {
+    val bucket = b
+    val obj = o
+  }
 }
 
 trait LinkWalkStepOperators {

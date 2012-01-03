@@ -3,6 +3,7 @@ package com.stackmob.scaliak
 import scalaz._
 import Scalaz._
 import effects._
+import com.basho.riak.client.IRiakObject
 import com.basho.riak.client.query.functions.{NamedFunction, NamedErlangFunction}
 import scala.collection.JavaConverters._
 import com.basho.riak.client.cap.{UnresolvedConflictException, Quorum}
@@ -114,13 +115,24 @@ class ScaliakBucket(rawClient: RawClient,
 
 
   import linkwalk._
-  // This method discards any objects that have conversion errors
-  def linkWalk[T](obj: ScaliakObject, steps: LinkWalkSteps)(implicit converter: ScaliakConverter[T]): IO[Iterable[Iterable[T]]] = {
+
+  //this method discards any objects that have conversion errors
+  def linkWalk(obj: ScaliakObject, steps: LinkWalkSteps): IO[Iterable[Iterable[LinkWalkResult]]] = {
     for {
       walkResult <- rawClient.linkWalk(generateLinkWalkSpec(name, obj.key, steps)).pure[IO]
     } yield {
-      // this is kinda ridiculous
-      walkResult.asScala map { _.asScala map { converter.read(_).toOption } filter { _.isDefined } map { _.get } } filterNot { _.isEmpty }
+      val objectLevelsAndSteps = walkResult.asScala zip steps.list
+      objectLevelsAndSteps map { tup =>
+        val (objColl, step) = tup
+        val objIterable = objColl.asScala
+        if(objIterable.size == 0) {
+          None
+        }
+        else {
+          val linkWalkResults:Iterable[LinkWalkResult] = objIterable map {o => LinkWalkResult(step.bucket, o) }
+          Some(linkWalkResults)
+        }
+      } filter { opt => opt.isDefined } map { opt => opt.get }
     }
   }  
   
