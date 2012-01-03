@@ -125,14 +125,9 @@ class ScaliakBucket(rawClient: RawClient,
       objectLevelsAndSteps map { tup =>
         val (objColl, step) = tup
         val objIterable = objColl.asScala
-        if(objIterable.size == 0) {
-          None
-        }
-        else {
-          val linkWalkResults:Iterable[LinkWalkResult] = objIterable map {o => LinkWalkResult(step.bucket, o) }
-          Some(linkWalkResults)
-        }
-      } filter { opt => opt.isDefined } map { opt => opt.get }
+        val linkWalkResults:Iterable[LinkWalkResult] = objIterable map {o => LinkWalkResult(step.bucket, o) }
+        linkWalkResults
+      }
     }
   }  
   
