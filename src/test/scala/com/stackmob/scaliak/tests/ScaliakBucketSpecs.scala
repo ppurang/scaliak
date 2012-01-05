@@ -102,6 +102,8 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     "Setting the ifModified value for the request"                                  ^
       "if not set the generated meta has a null ifModified value"                   ! fetchArguments.testDefaultIfModified ^
       "if set the generated meta has the given ifModified value"                    ! fetchArguments.testPassedIfModified  ^
+    "fetchDangerous is fetch but without default exception handling"                ! simpleFetch.testDangerous ^
+    "fetchUnsafe calls unsafePerformIO immediately"                                 ! simpleFetch.testUnsafe ^
                                                                                     endp^
   "Writing Data"                                                                    ^
     "With No Conversion"                                                            ^
@@ -692,7 +694,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     val mockRiakObj1 = mockRiakObj(testBucket, testKey, mock1Bytes, testContentType, mock1VClockStr, vTag = mock1VTag, lastModified = mock1LastModified)
 
     val singleObjectResponse = mockRiakResponse(Array(mockRiakObj1))
-    
+
     rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns singleObjectResponse
 
     def someWKey = {
@@ -798,6 +800,17 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       (r.toOption | None) aka "the optional result discarding the exceptions" must beSome.which {
         _.someField == testKey
       }
+    }
+    
+    def testDangerous = {
+      val newClient = mock[RawClient]
+      val newBucket = createBucketWithClient(newClient)
+      newClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) throws (new NullPointerException)
+      newBucket.fetchDangerous(testKey).unsafePerformIO must throwA[NullPointerException]
+    }
+    
+    def testUnsafe = {
+      (bucket.fetchUnsafe(testKey).toOption | None) must beSome
     }
 
     // the result after discarding any possible exceptions

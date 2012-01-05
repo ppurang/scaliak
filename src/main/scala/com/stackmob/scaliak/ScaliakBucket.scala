@@ -39,7 +39,15 @@ class ScaliakBucket(rawClient: RawClient,
                     val chashKeyFunction: NamedErlangFunction,
                     val linkWalkFunction: NamedErlangFunction,
                     val isSearchable: Boolean) {   
+  
 
+  /*
+   * Creates an IO action that fetches as object by key
+   * The action has built-in exception handling that
+   * returns a failure with the exception as the only
+   * member of the exception list. For custom exception
+   * handling see fetchDangerous
+   */
   def fetch[T](key: String,
                r: RArgument = RArgument(),
                pr: PRArgument = PRArgument(),
@@ -49,9 +57,43 @@ class ScaliakBucket(rawClient: RawClient,
                ifModifiedSince: IfModifiedSinceArgument = IfModifiedSinceArgument(),
                ifModified: IfModifiedVClockArgument = IfModifiedVClockArgument())
               (implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
-    (rawFetch(key, r, pr, notFoundOk, basicQuorum, returnDeletedVClock, ifModifiedSince, ifModified) map {
-      riakResponseToResult(_)      
-    }) except { t => t.failNel.pure[IO] }
+    fetchDangerous(key, r, pr, notFoundOk, basicQuorum, returnDeletedVClock, ifModifiedSince, ifModified) except { _.failNel.pure[IO] }
+  }
+
+  /*
+   * Creates an IO action that fetches an object by key and has no built-in exception handling
+   * If using this method it is necessary to deal with exception handling
+   * using either the built in facilities in IO or standard try/catch
+   */
+  def fetchDangerous[T](key: String,
+                        r: RArgument = RArgument(),
+                        pr: PRArgument = PRArgument(),
+                        notFoundOk: NotFoundOkArgument = NotFoundOkArgument(),
+                        basicQuorum: BasicQuorumArgument = BasicQuorumArgument(),
+                        returnDeletedVClock: ReturnDeletedVCLockArgument = ReturnDeletedVCLockArgument(),
+                        ifModifiedSince: IfModifiedSinceArgument = IfModifiedSinceArgument(),
+                        ifModified: IfModifiedVClockArgument = IfModifiedVClockArgument())
+                       (implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
+    rawFetch(key, r, pr, notFoundOk, basicQuorum, returnDeletedVClock, ifModifiedSince, ifModified) map {
+      riakResponseToResult(_)
+    }
+  }
+
+  /*
+   * Same as calling fetch and immediately calling unsafePerformIO
+   * Because fetch handles exceptions this method typically will not throw
+   * (but if you wish to be extra cautious it may)
+   */
+  def fetchUnsafe[T](key: String,
+                     r: RArgument = RArgument(),
+                     pr: PRArgument = PRArgument(),
+                     notFoundOk: NotFoundOkArgument = NotFoundOkArgument(),
+                     basicQuorum: BasicQuorumArgument = BasicQuorumArgument(),
+                     returnDeletedVClock: ReturnDeletedVCLockArgument = ReturnDeletedVCLockArgument(),
+                     ifModifiedSince: IfModifiedSinceArgument = IfModifiedSinceArgument(),
+                     ifModified: IfModifiedVClockArgument = IfModifiedVClockArgument())
+                    (implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): ValidationNEL[Throwable, Option[T]] = {
+    fetch(key, r, pr, notFoundOk, basicQuorum, returnDeletedVClock, ifModifiedSince, ifModified).unsafePerformIO
   }
 
   // r - int -fetch
