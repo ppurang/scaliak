@@ -3,7 +3,8 @@ package com.stackmob.scaliak.linkwalk
 import scalaz._
 import Scalaz._
 import com.basho.riak.client.query.LinkWalkStep.Accumulate
-import com.stackmob.scaliak.{ScaliakConverter, ScaliakResolver, ScaliakObject, ScaliakBucket}
+import com.stackmob.scaliak._
+import com.stackmob.scaliak.mapping.AccumulateError
 
 /**
  * Created by IntelliJ IDEA.
@@ -40,6 +41,68 @@ object LinkWalkStep {
   implicit def LinkWalkStepEqual: Equal[LinkWalkStep] =
     equal((s1, s2) => s1.bucket === s2.bucket && s1.tag === s2.tag && s1.accumulate == s2.accumulate)
   
+}
+
+sealed trait LinkWalkStepWithConverters {
+  def linkWalkSteps:LinkWalkSteps
+  //get the indices in linkWalkSteps which represent steps that should be accumulated,
+  //and hence converted
+  lazy val indicesToConvert:List[Int] = linkWalkSteps.list.zipWithIndex.filter {
+    _._1.accumulate == Accumulate.YES
+  }.map(_._2)
+
+  def ensureNumAccumulateSteps(n:Int) {
+    val numIndicesToConvert = indicesToConvert.size
+    if(numIndicesToConvert != n) throw new AccumulateError(n, numIndicesToConvert)
+  }
+}
+
+object LinkWalkStepWithConverters {
+  def apply[T](steps:LinkWalkSteps, c:(ScaliakConverter[T])) = new LinkWalkStepWith1Converter[T] {
+    val linkWalkSteps = steps
+    val converters = c
+  }
+
+  def apply[T, U](steps:LinkWalkSteps, c:(ScaliakConverter[T], ScaliakConverter[U])) = new LinkWalkStepWith2Converters[T, U] {
+    val linkWalkSteps = steps
+    val converters = c
+  }
+
+  def apply[T, U, V](steps:LinkWalkSteps, c:(ScaliakConverter[T], ScaliakConverter[U], ScaliakConverter[V])) = new LinkWalkStepWith3Converters[T, U, V] {
+    val linkWalkSteps = steps
+    val converters = c
+  }
+
+  def apply[T, U, V, W](steps:LinkWalkSteps, c:(ScaliakConverter[T], ScaliakConverter[U], ScaliakConverter[V], ScaliakConverter[W])) = new LinkWalkStepWith4Converters[T, U, V, W] {
+    val linkWalkSteps = steps
+    val converters = c
+  }
+
+  def apply[T, U, V, W, X](steps:LinkWalkSteps, c:(ScaliakConverter[T], ScaliakConverter[U], ScaliakConverter[V], ScaliakConverter[W], ScaliakConverter[X])) = new LinkWalkStepWith5Converters[T, U, V, W, X] {
+    val linkWalkSteps = steps
+    val converters = c
+  }
+}
+
+sealed trait LinkWalkStepWith1Converter[T] extends LinkWalkStepWithConverters {
+  def converters:(ScaliakConverter[T])
+  ensureNumAccumulateSteps(1)
+}
+sealed trait LinkWalkStepWith2Converters[T, U] extends LinkWalkStepWithConverters {
+  def converters:(ScaliakConverter[T], ScaliakConverter[U])
+  ensureNumAccumulateSteps(2)
+}
+sealed trait LinkWalkStepWith3Converters[T, U, V] extends LinkWalkStepWithConverters {
+  def converters:(ScaliakConverter[T], ScaliakConverter[U], ScaliakConverter[V])
+  ensureNumAccumulateSteps(3)
+}
+sealed trait LinkWalkStepWith4Converters[T, U, V, W] extends LinkWalkStepWithConverters {
+  def converters:(ScaliakConverter[T], ScaliakConverter[U], ScaliakConverter[V], ScaliakConverter[W])
+  ensureNumAccumulateSteps(4)
+}
+sealed trait LinkWalkStepWith5Converters[T, U, V, W, X] extends LinkWalkStepWithConverters {
+  def converters:(ScaliakConverter[T], ScaliakConverter[U], ScaliakConverter[V], ScaliakConverter[W], ScaliakConverter[X])
+  ensureNumAccumulateSteps(5)
 }
 
 sealed trait LinkWalkResult {

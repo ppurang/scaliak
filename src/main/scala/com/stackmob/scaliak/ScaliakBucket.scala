@@ -1,5 +1,6 @@
 package com.stackmob.scaliak
 
+import mapping.{NoConvertiblesError, ScaliakLinkWalkingError, AccumulateError}
 import scalaz._
 import Scalaz._
 import effects._
@@ -115,8 +116,6 @@ class ScaliakBucket(rawClient: RawClient,
 
 
   import linkwalk._
-
-  //this method discards any objects that have conversion errors
   def linkWalk(obj: ScaliakObject, steps: LinkWalkSteps): IO[Iterable[Iterable[LinkWalkResult]]] = {
     for {
       walkResult <- rawClient.linkWalk(generateLinkWalkSpec(name, obj.key, steps)).pure[IO]
@@ -129,8 +128,189 @@ class ScaliakBucket(rawClient: RawClient,
         linkWalkResults
       }
     }
-  }  
-  
+  }
+
+  private def iterableToNEL[T](iterable:Iterable[T]):Option[NonEmptyList[T]] = iterable.toSeq.toList.toNel
+
+  private def convertNel[T](nel: NonEmptyList[LinkWalkResult], converter:ScaliakConverter[T]):ValidationNEL[Throwable, NonEmptyList[T]] = {
+    val converted:NonEmptyList[ValidationNEL[Throwable, T]] = nel.map { lwr => converter.read(lwr.obj) }
+    type sequenceTypeAlias[U] = ValidationNEL[Throwable, NonEmptyList[U]]
+    converted.sequence[sequenceTypeAlias, T]
+//    converted.traverse[sequenceTypeAlias, T](identity(_))
+  }
+
+  def linkWalk[T](obj:ScaliakObject, step:LinkWalkStepWith1Converter[T]):
+    IO[(ValidationNEL[Throwable, NonEmptyList[T]])] = {
+
+    val scaliakConverter:ScaliakConverter[T] = step.converters
+    val linkWalkSteps:LinkWalkSteps = step.linkWalkSteps
+    linkWalk(obj, linkWalkSteps).map { iteratorOfIterators =>
+      iterableToNEL(iteratorOfIterators) match {
+        case Some(outerNel:NonEmptyList[Iterable[LinkWalkResult]]) => {
+          iterableToNEL(outerNel.head) match {
+            case Some(innerNel:NonEmptyList[LinkWalkResult]) => (convertNel(innerNel, scaliakConverter))
+            case None => (new NoConvertiblesError(1).failNel[NonEmptyList[T]])
+          }
+        }
+        case None => (new NoConvertiblesError(1).failNel[NonEmptyList[T]])
+      }
+    }
+  }
+
+  def linkWalk[T, U](obj:ScaliakObject, step:LinkWalkStepWith2Converters[T, U]):
+    IO[(ValidationNEL[Throwable, NonEmptyList[T]], ValidationNEL[Throwable, NonEmptyList[U]])] = {
+
+    val converters:(ScaliakConverter[T], ScaliakConverter[U]) = step.converters
+    val linkWalkSteps:LinkWalkSteps = step.linkWalkSteps
+    linkWalk(obj, linkWalkSteps).map { iteratorOfIterators =>
+      iterableToNEL(iteratorOfIterators) match {
+        case Some(outerNel:NonEmptyList[Iterable[LinkWalkResult]]) => {
+          iterableToNEL(outerNel.head) match {
+            case Some(firstInnerNel:NonEmptyList[LinkWalkResult]) => {
+              iterableToNEL(outerNel.tail.head) match {
+                case Some(secondInnerNel:NonEmptyList[LinkWalkResult]) => (convertNel(firstInnerNel, converters._1), convertNel(secondInnerNel, converters._2))
+                case None => (convertNel(firstInnerNel, converters._1), new NoConvertiblesError(2).failNel[NonEmptyList[U]])
+              }
+            }
+            case None => (new NoConvertiblesError(1).failNel[NonEmptyList[T]], new NoConvertiblesError(2).failNel[NonEmptyList[U]])
+          }
+        }
+      }
+    }
+  }
+
+  def linkWalk[T, U, V](obj:ScaliakObject, step:LinkWalkStepWith3Converters[T, U, V]):
+    IO[(ValidationNEL[Throwable, NonEmptyList[T]], ValidationNEL[Throwable, NonEmptyList[U]], ValidationNEL[Throwable, NonEmptyList[V]])] = {
+
+    val converters:(ScaliakConverter[T], ScaliakConverter[U], ScaliakConverter[V]) = step.converters
+    val linkWalkSteps:LinkWalkSteps = step.linkWalkSteps
+    linkWalk(obj, linkWalkSteps).map { iteratorOfIterators =>
+      iterableToNEL(iteratorOfIterators) match {
+        case Some(outerNel:NonEmptyList[Iterable[LinkWalkResult]]) => {
+          iterableToNEL(outerNel.head) match {
+            case Some(firstInnerNel:NonEmptyList[LinkWalkResult]) => {
+              iterableToNEL(outerNel.tail.head) match {
+                case Some(secondInnerNel:NonEmptyList[LinkWalkResult]) => {
+                  iterableToNEL(outerNel.tail.tail.head) match {
+                    case Some(thirdInnerNel:NonEmptyList[LinkWalkResult]) => (convertNel(firstInnerNel, converters._1), convertNel(secondInnerNel, converters._2), convertNel(thirdInnerNel, converters._3))
+                    case None => (convertNel(firstInnerNel, converters._1), convertNel(secondInnerNel, converters._2), new NoConvertiblesError(3).failNel[NonEmptyList[V]])
+                  }
+                }
+                case None => (convertNel(firstInnerNel, converters._1), new NoConvertiblesError(2).failNel[NonEmptyList[U]], new NoConvertiblesError(3).failNel[NonEmptyList[V]])
+              }
+            }
+            case None => (new NoConvertiblesError(1).failNel[NonEmptyList[T]], new NoConvertiblesError(2).failNel[NonEmptyList[U]], new NoConvertiblesError(3).failNel[NonEmptyList[V]])
+          }
+        }
+      }
+    }
+  }
+
+  def linkWalk[T, U, V, W](obj:ScaliakObject, step:LinkWalkStepWith4Converters[T, U, V, W]):
+    IO[(ValidationNEL[Throwable, NonEmptyList[T]], ValidationNEL[Throwable, NonEmptyList[U]], ValidationNEL[Throwable, NonEmptyList[V]], ValidationNEL[Throwable, NonEmptyList[W]])] = {
+
+    val converters:(ScaliakConverter[T], ScaliakConverter[U], ScaliakConverter[V], ScaliakConverter[W]) = step.converters
+    val linkWalkSteps:LinkWalkSteps = step.linkWalkSteps
+    linkWalk(obj, linkWalkSteps).map { iteratorOfIterators =>
+      iterableToNEL(iteratorOfIterators) match {
+        case Some(outerNel:NonEmptyList[Iterable[LinkWalkResult]]) => {
+          iterableToNEL(outerNel.head) match {
+            case Some(firstInnerNel:NonEmptyList[LinkWalkResult]) => {
+              iterableToNEL(outerNel.tail.head) match {
+                case Some(secondInnerNel:NonEmptyList[LinkWalkResult]) => {
+                  iterableToNEL(outerNel.tail.tail.head) match {
+                    case Some(thirdInnerNel:NonEmptyList[LinkWalkResult]) => {
+                      iterableToNEL(outerNel.tail.tail.head) match {
+                        case Some(fourthInnerNel:NonEmptyList[LinkWalkResult]) =>
+                          (convertNel(firstInnerNel, converters._1), convertNel(secondInnerNel, converters._2), convertNel(thirdInnerNel, converters._3), convertNel(fourthInnerNel, converters._4))
+                        case None => (convertNel(firstInnerNel, converters._1),
+                          convertNel(secondInnerNel, converters._2),
+                          convertNel(thirdInnerNel, converters._3),
+                          new NoConvertiblesError(4).failNel[NonEmptyList[W]])
+                      }
+                    }
+                    case None => (convertNel(firstInnerNel, converters._1),
+                      convertNel(secondInnerNel, converters._2),
+                      new NoConvertiblesError(3).failNel[NonEmptyList[V]],
+                      new NoConvertiblesError(4).failNel[NonEmptyList[W]])
+                  }
+                }
+                case None => (convertNel(firstInnerNel, converters._1),
+                  new NoConvertiblesError(2).failNel[NonEmptyList[U]],
+                  new NoConvertiblesError(3).failNel[NonEmptyList[V]],
+                  new NoConvertiblesError(4).failNel[NonEmptyList[W]])
+              }
+            }
+            case None => (new NoConvertiblesError(1).failNel[NonEmptyList[T]],
+              new NoConvertiblesError(2).failNel[NonEmptyList[U]],
+              new NoConvertiblesError(3).failNel[NonEmptyList[V]],
+              new NoConvertiblesError(4).failNel[NonEmptyList[W]])
+          }
+        }
+      }
+    }
+  }
+
+  def linkWalk[T, U, V, W, X](obj:ScaliakObject, step:LinkWalkStepWith5Converters[T, U, V, W, X]):
+    IO[(ValidationNEL[Throwable, NonEmptyList[T]], ValidationNEL[Throwable, NonEmptyList[U]], ValidationNEL[Throwable, NonEmptyList[V]], ValidationNEL[Throwable, NonEmptyList[W]], ValidationNEL[Throwable, NonEmptyList[X]])] = {
+
+    val converters:(ScaliakConverter[T], ScaliakConverter[U], ScaliakConverter[V], ScaliakConverter[W], ScaliakConverter[X]) = step.converters
+    val linkWalkSteps:LinkWalkSteps = step.linkWalkSteps
+    linkWalk(obj, linkWalkSteps).map { iteratorOfIterators =>
+      iterableToNEL(iteratorOfIterators) match {
+        case Some(outerNel:NonEmptyList[Iterable[LinkWalkResult]]) => {
+          iterableToNEL(outerNel.head) match {
+            case Some(firstInnerNel:NonEmptyList[LinkWalkResult]) => {
+              iterableToNEL(outerNel.tail.head) match {
+                case Some(secondInnerNel:NonEmptyList[LinkWalkResult]) => {
+                  iterableToNEL(outerNel.tail.tail.head) match {
+                    case Some(thirdInnerNel:NonEmptyList[LinkWalkResult]) => {
+                      iterableToNEL(outerNel.tail.tail.head) match {
+                        case Some(fourthInnerNel:NonEmptyList[LinkWalkResult]) => {
+                          iterableToNEL(outerNel.tail.tail.tail.head) match {
+                            case Some(fifthInnerNel:NonEmptyList[LinkWalkResult]) =>
+                              (convertNel(firstInnerNel, converters._1), convertNel(secondInnerNel, converters._2), convertNel(thirdInnerNel, converters._3), convertNel(fourthInnerNel, converters._4), convertNel(fifthInnerNel, converters._5))
+                            case None => (convertNel(firstInnerNel, converters._1),
+                              convertNel(secondInnerNel, converters._2),
+                              convertNel(thirdInnerNel, converters._3),
+                              convertNel(fourthInnerNel, converters._4),
+                              new NoConvertiblesError(5).failNel[NonEmptyList[X]])
+                          }
+                        }
+                        case None => {
+                          (convertNel(firstInnerNel, converters._1),
+                            convertNel(secondInnerNel, converters._2),
+                            convertNel(thirdInnerNel, converters._3),
+                            new NoConvertiblesError(4).failNel[NonEmptyList[W]],
+                            new NoConvertiblesError(5).failNel[NonEmptyList[X]])
+                        }
+                      }
+                    }
+                    case None => (convertNel(firstInnerNel, converters._1),
+                      convertNel(secondInnerNel, converters._2),
+                      new NoConvertiblesError(3).failNel[NonEmptyList[V]],
+                      new NoConvertiblesError(4).failNel[NonEmptyList[W]],
+                      new NoConvertiblesError(5).failNel[NonEmptyList[X]])
+                  }
+                }
+                case None => (convertNel(firstInnerNel, converters._1),
+                  new NoConvertiblesError(2).failNel[NonEmptyList[U]],
+                  new NoConvertiblesError(3).failNel[NonEmptyList[V]],
+                  new NoConvertiblesError(4).failNel[NonEmptyList[W]],
+                  new NoConvertiblesError(5).failNel[NonEmptyList[X]])
+              }
+            }
+            case None => (new NoConvertiblesError(1).failNel[NonEmptyList[T]],
+              new NoConvertiblesError(2).failNel[NonEmptyList[U]],
+              new NoConvertiblesError(3).failNel[NonEmptyList[V]],
+              new NoConvertiblesError(4).failNel[NonEmptyList[W]],
+              new NoConvertiblesError(5).failNel[NonEmptyList[X]])
+          }
+        }
+      }
+    }
+  }
+
   private def generateLinkWalkSpec(bucket: String, key: String, steps: LinkWalkSteps) = {
     new LinkWalkSpec(steps, bucket, key)
   }

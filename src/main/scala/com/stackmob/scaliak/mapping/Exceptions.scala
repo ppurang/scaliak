@@ -7,6 +7,11 @@ package com.stackmob.scaliak.mapping
  * Time: 12:10 AM
  */
 
+sealed class ScaliakLinkWalkingError(s:String) extends Throwable(s)
+case class AccumulateError(numAccumulateSteps:Int, numConversionSteps:Int)
+  extends ScaliakLinkWalkingError("Specified " + numAccumulateSteps + " steps to accumulate, but only " + numConversionSteps + " steps to convert")
+case class NoConvertiblesError(levelNum:Int) extends ScaliakLinkWalkingError("no target elements found to convert at link level " + levelNum)
+
 sealed abstract class ScaliakMappingError[T](val propName: String, val value: T)
   extends Throwable("%s with value %s was not valid".format(propName, value.toString))
 
