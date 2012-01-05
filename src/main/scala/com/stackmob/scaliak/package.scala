@@ -26,5 +26,6 @@ package object scaliak {
   implicit def intToRWArg(i: Int): RWArgument = RWArgument(Option(i))
   implicit def intToDWArg(i: Int): DWArgument = DWArgument(Option(i))
   implicit def intToPWArg(i: Int): PWArgument = PWArgument(Option(i))
+  implicit def boolToReturnBodyArg(b: Boolean): ReturnBodyArgument = ReturnBodyArgument(Option(b))
   
 }

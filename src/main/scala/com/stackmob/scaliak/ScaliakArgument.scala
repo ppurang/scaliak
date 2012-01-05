@@ -39,6 +39,13 @@ trait UpdateBucketBuilder[T] extends MetaBuilder {
   def bucketMetaFunction(builder: BucketPropertiesBuilder): T => BucketPropertiesBuilder
 }
 
+trait StoreMetaBuilder[T] extends MetaBuilder {
+  this: ScaliakArgument[T] => 
+  
+  def addToMeta(builder: StoreMeta.Builder) { value foreach storeMetaFunction(builder) }
+  def storeMetaFunction(builder: StoreMeta.Builder): T => StoreMeta.Builder
+}
+
 case class AllowSiblingsArgument(value: Option[Boolean] = none) extends ScaliakArgument[Boolean] with UpdateBucketBuilder[Boolean] {
   def bucketMetaFunction(meta: BucketPropertiesBuilder) = meta.allowSiblings
 }
@@ -93,18 +100,25 @@ case class IfModifiedVClockArgument(value: Option[VClock] = none) extends Scalia
   def fetchMetaFunction(meta: FetchMeta.Builder) = meta.vclock
 }
 
-case class WArgument(value: Option[Int] = none) extends ScaliakArgument[Int] with UpdateBucketBuilder[Int] {
+case class WArgument(value: Option[Int] = none) extends ScaliakArgument[Int] with UpdateBucketBuilder[Int] with StoreMetaBuilder[Int] {
   def bucketMetaFunction(meta: BucketPropertiesBuilder) = meta.w(_: Int)
+  def storeMetaFunction(meta: StoreMeta.Builder) = meta.w(_: Int)
 }
 
 case class RWArgument(value: Option[Int] = none) extends ScaliakArgument[Int] with UpdateBucketBuilder[Int] {
   def bucketMetaFunction(meta: BucketPropertiesBuilder) = meta.rw(_: Int)
 }
 
-case class DWArgument(value: Option[Int] = none) extends ScaliakArgument[Int] with UpdateBucketBuilder[Int] {
+case class DWArgument(value: Option[Int] = none) extends ScaliakArgument[Int] with UpdateBucketBuilder[Int] with StoreMetaBuilder[Int] {
   def bucketMetaFunction(meta: BucketPropertiesBuilder) = meta.dw(_: Int)
+  def storeMetaFunction(meta: StoreMeta.Builder) = meta.dw(_: Int)
 }
 
-case class PWArgument(value: Option[Int] = none) extends ScaliakArgument[Int] with UpdateBucketBuilder[Int] {
+case class PWArgument(value: Option[Int] = none) extends ScaliakArgument[Int] with UpdateBucketBuilder[Int] with StoreMetaBuilder[Int] {
   def bucketMetaFunction(meta: BucketPropertiesBuilder) = meta.pw(_: Int)
+  def storeMetaFunction(meta: StoreMeta.Builder) = meta.pw(_: Int)
+}
+
+case class ReturnBodyArgument(value: Option[Boolean] = Option(false)) extends ScaliakArgument[Boolean] with StoreMetaBuilder[Boolean] {
+  def storeMetaFunction(meta: StoreMeta.Builder) = meta.returnBody(_: Boolean)
 }

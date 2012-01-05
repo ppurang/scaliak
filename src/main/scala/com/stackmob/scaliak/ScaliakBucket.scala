@@ -96,15 +96,6 @@ class ScaliakBucket(rawClient: RawClient,
     fetch(key, r, pr, notFoundOk, basicQuorum, returnDeletedVClock, ifModifiedSince, ifModified).unsafePerformIO
   }
 
-  // r - int -fetch
-  // pr - int - fetch
-  // notFoundOk - boolean -fetch
-  // basicQuorum - bool - fetch
-  // returnDeleteVClock - bool - fetch
-  // pw - int - store
-  // w - int - store
-  // dw - int - store
-  // returnBody - bool - store
   // ifNoneMatch - bool - store
   // ifNotModified - bool - store
   def store[T](obj: T,
@@ -112,9 +103,12 @@ class ScaliakBucket(rawClient: RawClient,
                pr: PRArgument = PRArgument(),
                notFoundOk: NotFoundOkArgument = NotFoundOkArgument(),
                basicQuorum: BasicQuorumArgument = BasicQuorumArgument(),
-               returnDeletedVClock: ReturnDeletedVCLockArgument = ReturnDeletedVCLockArgument())
+               returnDeletedVClock: ReturnDeletedVCLockArgument = ReturnDeletedVCLockArgument(),
+               w: WArgument = WArgument(),
+               pw: PWArgument = PWArgument(),
+               dw: DWArgument = DWArgument(),
+               returnBody: ReturnBodyArgument = ReturnBodyArgument())
               (implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T], mutator: ScaliakMutation[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
-    val emptyStoreMeta = new StoreMeta.Builder().build() // TODO: support store meta arguments
     //TODO: need to not convert the object here
     // it causes two calls to converter.write.
     // Instead force domain objects to implement a simple
@@ -129,7 +123,7 @@ class ScaliakBucket(rawClient: RawClient,
       fetchRes flatMap {
         mbFetched => {
           val objToStore = converter.write(mutator(mbFetched, obj)).asRiak(name, resp.getVclock)
-          riakResponseToResult(rawClient.store(objToStore, emptyStoreMeta))
+          riakResponseToResult(rawClient.store(objToStore, prepareStoreMeta(w, pw, dw, returnBody)))
         }
       }
     }) except { t => t.failNel.pure[IO] }
@@ -203,6 +197,12 @@ class ScaliakBucket(rawClient: RawClient,
     ((r.getRiakObjects map { converter.read(_) }).toList.toNel map { sibs =>
       resolver(sibs)
     }).sequence[ScaliakConverter[T]#ReadResult, T]
+  }
+
+  private def prepareStoreMeta(w: WArgument, pw: PWArgument, dw: DWArgument, returnBody: ReturnBodyArgument) = {
+    val storeMetaBuilder = new StoreMeta.Builder()
+    List(w, pw, dw, returnBody) foreach { _ addToMeta storeMetaBuilder }
+    storeMetaBuilder.build()
   }
 
   private def prepareDeleteMeta(mbResponse: Option[RiakResponse], deleteMetaBuilder: DeleteMeta.Builder) = {

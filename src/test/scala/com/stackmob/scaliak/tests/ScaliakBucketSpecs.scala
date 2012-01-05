@@ -82,26 +82,26 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
             "returns the object of type T when converter is supplied implicitly"    ! simpleFetch.testConversionImplicit ^
                                                                                     p^p^p^p^
     "Setting the r value for the request"                                           ^
-      "if not set the generated meta has a null r value"                            ! fetchArguments.testDefaultR ^
-      "if set the generated meta has the given r value"                             ! fetchArguments.testPassedR  ^p^
+      "if not set the generated meta has a null r value"                            ! riakArguments.testDefaultR ^
+      "if set the generated meta has the given r value"                             ! riakArguments.testPassedR  ^p^
     "Setting the pr value for the request"                                          ^
-      "if not set the generated meta has a null pr value"                           ! fetchArguments.testDefaultPR ^
-      "if set the generated meta has the given pr value"                            ! fetchArguments.testPassedPR  ^p^
+      "if not set the generated meta has a null pr value"                           ! riakArguments.testDefaultPR ^
+      "if set the generated meta has the given pr value"                            ! riakArguments.testPassedPR  ^p^
     "Setting the notFoundOk value for the request"                                  ^
-      "if not set the generated meta has a null notFoundOk value"                   ! fetchArguments.testDefaultNotFoundOk ^
-      "if set the generated meta has the given notFoundOk value"                    ! fetchArguments.testPassedNotFoundOk  ^p^
+      "if not set the generated meta has a null notFoundOk value"                   ! riakArguments.testDefaultNotFoundOk ^
+      "if set the generated meta has the given notFoundOk value"                    ! riakArguments.testPassedNotFoundOk  ^p^
     "Setting the basicQuorum value for the request"                                 ^
-      "if not set the generated meta has a null basicQuorum value"                  ! fetchArguments.testDefaultBasicQuorum ^
-      "if set the generated meta has the given basicQuorum value"                   ! fetchArguments.testPassedBasicQuorum  ^p^
+      "if not set the generated meta has a null basicQuorum value"                  ! riakArguments.testDefaultBasicQuorum ^
+      "if set the generated meta has the given basicQuorum value"                   ! riakArguments.testPassedBasicQuorum  ^p^
     "Setting the returnDeletedVClock value for the request"                         ^
-      "if not set the generated meta has a null returnDeletedVClock value"          ! fetchArguments.testDefaultReturnedVClock ^
-      "if set the generated meta has the given returnDeletedVClock value"           ! fetchArguments.testPassedReturnedVClock  ^p^
+      "if not set the generated meta has a null returnDeletedVClock value"          ! riakArguments.testDefaultReturnedVClock ^
+      "if set the generated meta has the given returnDeletedVClock value"           ! riakArguments.testPassedReturnedVClock  ^p^
     "Setting the modifiedSince value for the request"                               ^
-      "if not set the generated meta has a null modifiedSince value"                ! fetchArguments.testDefaultModifiedSince ^
-      "if set the generated meta has the given modifiedSince value"                 ! fetchArguments.testPassedModifiedSince  ^p^
+      "if not set the generated meta has a null modifiedSince value"                ! riakArguments.testDefaultModifiedSince ^
+      "if set the generated meta has the given modifiedSince value"                 ! riakArguments.testPassedModifiedSince  ^p^
     "Setting the ifModified value for the request"                                  ^
-      "if not set the generated meta has a null ifModified value"                   ! fetchArguments.testDefaultIfModified ^
-      "if set the generated meta has the given ifModified value"                    ! fetchArguments.testPassedIfModified  ^
+      "if not set the generated meta has a null ifModified value"                   ! riakArguments.testDefaultIfModified ^
+      "if set the generated meta has the given ifModified value"                    ! riakArguments.testPassedIfModified  ^
     "fetchDangerous is fetch but without default exception handling"                ! simpleFetch.testDangerous ^
     "fetchUnsafe calls unsafePerformIO immediately"                                 ! simpleFetch.testUnsafe ^
                                                                                     endp^
@@ -146,33 +146,33 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
                                                                                     p^
     "Read Properties"                                                               ^
       "Setting the r value for the request"                                         ^
-        "if not set the generated meta has a null r value"                          ! fetchArguments.testWriteDefaultR ^
-        "if set the generated meta has the given r value"                           ! fetchArguments.testPassedRWrite ^p^
+        "if not set the generated meta has a null r value"                          ! riakArguments.testWriteDefaultR ^
+        "if set the generated meta has the given r value"                           ! riakArguments.testPassedRWrite ^p^
       "Setting the pr value for the request"                                        ^
-        "if not set the generated meta has a null pr value"                         ! fetchArguments.testWriteDefaultPR ^
-        "if set the generated meta has the given pr value"                          ! fetchArguments.testPassedPRWrite ^p^
+        "if not set the generated meta has a null pr value"                         ! riakArguments.testWriteDefaultPR ^
+        "if set the generated meta has the given pr value"                          ! riakArguments.testPassedPRWrite ^p^
       "Setting the notFoundOk value for the request"                                ^
-        "if not set the generated meta has a null notFoundOk value"                 ! fetchArguments.testWriteDefaultNotFoundOk ^
-        "if set the generated meta has the given notFoundOk value"                  ! fetchArguments.testPassedNotFoundOkWrite ^p^
+        "if not set the generated meta has a null notFoundOk value"                 ! riakArguments.testWriteDefaultNotFoundOk ^
+        "if set the generated meta has the given notFoundOk value"                  ! riakArguments.testPassedNotFoundOkWrite ^p^
       "Setting the basicQuorum value for the request"                               ^
-        "if not set the generated meta has a null basicQuorum value"                ! fetchArguments.testWriteDefaultBasicQuorum ^
-        "if set the generated meta has the given basicQuorum value"                 ! fetchArguments.testPassedBasicQuorumWrite ^p^
+        "if not set the generated meta has a null basicQuorum value"                ! riakArguments.testWriteDefaultBasicQuorum ^
+        "if set the generated meta has the given basicQuorum value"                 ! riakArguments.testPassedBasicQuorumWrite ^p^
       "Setting the returnDeletedVClock value for the request"                       ^
-        "if not set the generated meta has a null returnDeletedVClock value"        ! fetchArguments.testWriteDefaultReturnedVClock ^
-        "if set the generated meta has the given returnDeletedVClock value"         ! fetchArguments.testPassedReturnVClockWrite ^p^p^
+        "if not set the generated meta has a null returnDeletedVClock value"        ! riakArguments.testWriteDefaultReturnedVClock ^
+        "if set the generated meta has the given returnDeletedVClock value"         ! riakArguments.testPassedReturnVClockWrite ^p^p^
     "Write Properties"                                                              ^
       "Setting the w value for the request"                                         ^
-        "if not set the generated meta has a null w value"                          ! skipped ^
-        "if set the generated meta has the given w value"                           ! skipped ^p^
+        "if not set the generated meta has a null w value"                          ! riakArguments.testDefaultW ^
+        "if set the generated meta has the given w value"                           ! riakArguments.testPassedW ^p^
       "Setting the pw value for the request"                                        ^
-        "if not set the generated meta has a null pw value"                         ! skipped ^
-        "if set the generated meta has the given pw value"                          ! skipped ^p^
+        "if not set the generated meta has a null pw value"                         ! riakArguments.testDefaultPW ^
+        "if set the generated meta has the given pw value"                          ! riakArguments.testPassedPW ^p^
       "Setting the dw value for the request"                                        ^
-        "if not set the generated meta has a null dw value"                         ! skipped ^
-        "if set the generated meta has the given dw value"                          ! skipped ^p^
+        "if not set the generated meta has a null dw value"                         ! riakArguments.testDefaultDW ^
+        "if set the generated meta has the given dw value"                          ! riakArguments.testPassedDW ^p^
       "Setting the return body value"                                               ^
-        "if not set the generated meta has a false return body"                     ! skipped ^
-        "if set the generated meta has the given return body"                       ! skipped ^p^
+        "if not set the generated meta has a false return body"                     ! riakArguments.testDefaultReturnBody ^
+        "if set the generated meta has the given return body"                       ! riakArguments.testPassedReturnBody ^p^
                                                                                     endp^
   "Deleting Data"                                                                   ^
     "By Key"                                                                        ^
@@ -541,18 +541,26 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
 
   }
 
-  object fetchArguments extends context {
+  object riakArguments extends context {
     // these aren't really used
     val rawClient = mock[RawClient]
     val bucket = createBucket
     
     class FetchMetaExtractor extends util.MockitoArgumentExtractor[FetchMeta]
+    class StoreMetaExtractor extends util.MockitoArgumentExtractor[StoreMeta]
     
     def initExtractor(rawClient: RawClient) = {
       val extractor = new FetchMetaExtractor
       rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.argThat(extractor)) returns mockRiakResponse(Array())
       extractor
     } 
+    
+    def initWriteExtractor(rawClient: RawClient) = {
+      initExtractor(rawClient)
+      val extractor = new StoreMetaExtractor
+      rawClient.store(MM.isA(classOf[IRiakObject]), MM.argThat(extractor)) returns null
+      extractor
+    }
     
     def testArg(f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]]): FetchMetaExtractor = {
       val rawClient = mock[RawClient]
@@ -562,11 +570,30 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       ex
     }
 
-    def testDefaultBase[T](metaProp: FetchMeta => T, f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]]) = {
+    def testWriteArg(f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]]): StoreMetaExtractor = {
+      val rawClient = mock[RawClient]
+      val ex = initWriteExtractor(rawClient)
+      val bucket = createBucketWithClient(rawClient)
+      f(bucket).unsafePerformIO
+
+      ex
+    }
+
+    def testDefaultFetchMetaBase[T](metaProp: FetchMeta => T, f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]]) = {
       testArg(f).argument must beSome.like {
         case meta => metaProp(meta) must beNull
       }
     }
+
+    def testDefaultFetchMeta[T](metaProp: FetchMeta => T) = testDefaultFetchMetaBase(metaProp, _.fetch(testKey))
+    def testWriteDefaultFetchMeta[T](metaProp: FetchMeta => T) = testDefaultFetchMetaBase(metaProp, _.store(testStoreObject))
+
+    def testDefaultStoreMeta[T](metaProp: StoreMeta => T) = {
+      testWriteArg(_.store(testStoreObject)).argument must beSome.like {
+        case meta => metaProp(meta) must beNull
+      }
+    }
+
 
     val testStoreObject = new ScaliakObject(
       testKey,
@@ -577,42 +604,58 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       links = nel(ScaliakLink("test", "test", "test")).some,
       metadata = Map("m1" -> "v1", "m2" -> "v2")
     )
-    def testDefault[T](metaProp: FetchMeta => T) = testDefaultBase(metaProp, _.fetch(testKey))
-    def testWriteDefault[T](metaProp: FetchMeta => T) = testDefaultBase(metaProp, _.store(testStoreObject))
-    
-    def testPassed[T](f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]], metaProp: FetchMeta => T, expected: T) = {
+
+    def testPassedFetchMeta[T](f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]], metaProp: FetchMeta => T, expected: T) = {
       testArg(f).argument must beSome.like {
         case meta => metaProp(meta) must beEqualTo(expected)
       }
-    } 
+    }
 
-    def testDefaultR = testDefault(_.getR)    
-    def testDefaultPR = testDefault(_.getPr)
-    def testDefaultNotFoundOk = testDefault(_.getNotFoundOK)
-    def testDefaultBasicQuorum = testDefault(_.getBasicQuorum)
-    def testDefaultReturnedVClock = testDefault(_.getReturnDeletedVClock)
-    def testDefaultModifiedSince = testDefault(_.getIfModifiedSince)
-    def testDefaultIfModified = testDefault(_.getIfModifiedVClock)
+    def testPassedStoreMeta[T](f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]], metaProp: StoreMeta => T, expected: T) = {
+      testWriteArg(f).argument must beSome.like {
+        case meta => metaProp(meta) must beEqualTo(expected)
+      }
+    }
 
-    def testWriteDefaultR = testWriteDefault(_.getR)
-    def testWriteDefaultPR = testWriteDefault(_.getPr)
-    def testWriteDefaultNotFoundOk = testWriteDefault(_.getNotFoundOK)
-    def testWriteDefaultBasicQuorum = testWriteDefault(_.getBasicQuorum)
-    def testWriteDefaultReturnedVClock = testWriteDefault(_.getReturnDeletedVClock)
+    def testDefaultR = testDefaultFetchMeta(_.getR)
+    def testDefaultPR = testDefaultFetchMeta(_.getPr)
+    def testDefaultNotFoundOk = testDefaultFetchMeta(_.getNotFoundOK)
+    def testDefaultBasicQuorum = testDefaultFetchMeta(_.getBasicQuorum)
+    def testDefaultReturnedVClock = testDefaultFetchMeta(_.getReturnDeletedVClock)
+    def testDefaultModifiedSince = testDefaultFetchMeta(_.getIfModifiedSince)
+    def testDefaultIfModified = testDefaultFetchMeta(_.getIfModifiedVClock)
 
-    def testPassedR = testPassed(_.fetch(testKey, r = 3), _.getR, 3)
-    def testPassedPR = testPassed(_.fetch(testKey, pr = 2), _.getPr, 2)
-    def testPassedNotFoundOk = testPassed(_.fetch(testKey, notFoundOk = true), _.getNotFoundOK, true)
-    def testPassedBasicQuorum = testPassed(_.fetch(testKey, basicQuorum = false), _.getBasicQuorum, false)
-    def testPassedReturnedVClock = testPassed(_.fetch(testKey, returnDeletedVClock = true), _.getReturnDeletedVClock, true)
-    def testPassedModifiedSince = testPassed(_.fetch(testKey, ifModifiedSince = testDate), _.getIfModifiedSince, testDate)
-    def testPassedIfModified = testPassed(_.fetch(testKey, ifModified = testVClock), _.getIfModifiedVClock, testVClock)
+    def testWriteDefaultR = testWriteDefaultFetchMeta(_.getR)
+    def testWriteDefaultPR = testWriteDefaultFetchMeta(_.getPr)
+    def testWriteDefaultNotFoundOk = testWriteDefaultFetchMeta(_.getNotFoundOK)
+    def testWriteDefaultBasicQuorum = testWriteDefaultFetchMeta(_.getBasicQuorum)
+    def testWriteDefaultReturnedVClock = testWriteDefaultFetchMeta(_.getReturnDeletedVClock)
 
-    def testPassedRWrite = testPassed(_.store(testStoreObject, r = 2), _.getR, 2)
-    def testPassedPRWrite = testPassed(_.store(testStoreObject, pr = 1), _.getPr, 1)
-    def testPassedNotFoundOkWrite = testPassed(_.store(testStoreObject, notFoundOk = true), _.getNotFoundOK, true)
-    def testPassedBasicQuorumWrite = testPassed(_.store(testStoreObject, basicQuorum = true), _.getBasicQuorum, true)
-    def testPassedReturnVClockWrite = testPassed(_.store(testStoreObject, returnDeletedVClock = false), _.getReturnDeletedVClock, false)
+    def testDefaultW = testDefaultStoreMeta(_.getW)
+    def testDefaultDW = testDefaultStoreMeta(_.getDw)
+    def testDefaultPW = testDefaultStoreMeta(_.getPw)
+    def testDefaultReturnBody = testWriteArg(_.store(testStoreObject)).argument must beSome.like {
+      case meta => meta.getReturnBody must beEqualTo(false)
+    }
+
+    def testPassedR = testPassedFetchMeta(_.fetch(testKey, r = 3), _.getR, 3)
+    def testPassedPR = testPassedFetchMeta(_.fetch(testKey, pr = 2), _.getPr, 2)
+    def testPassedNotFoundOk = testPassedFetchMeta(_.fetch(testKey, notFoundOk = true), _.getNotFoundOK, true)
+    def testPassedBasicQuorum = testPassedFetchMeta(_.fetch(testKey, basicQuorum = false), _.getBasicQuorum, false)
+    def testPassedReturnedVClock = testPassedFetchMeta(_.fetch(testKey, returnDeletedVClock = true), _.getReturnDeletedVClock, true)
+    def testPassedModifiedSince = testPassedFetchMeta(_.fetch(testKey, ifModifiedSince = testDate), _.getIfModifiedSince, testDate)
+    def testPassedIfModified = testPassedFetchMeta(_.fetch(testKey, ifModified = testVClock), _.getIfModifiedVClock, testVClock)
+
+    def testPassedRWrite = testPassedFetchMeta(_.store(testStoreObject, r = 2), _.getR, 2)
+    def testPassedPRWrite = testPassedFetchMeta(_.store(testStoreObject, pr = 1), _.getPr, 1)
+    def testPassedNotFoundOkWrite = testPassedFetchMeta(_.store(testStoreObject, notFoundOk = true), _.getNotFoundOK, true)
+    def testPassedBasicQuorumWrite = testPassedFetchMeta(_.store(testStoreObject, basicQuorum = true), _.getBasicQuorum, true)
+    def testPassedReturnVClockWrite = testPassedFetchMeta(_.store(testStoreObject, returnDeletedVClock = false), _.getReturnDeletedVClock, false)
+
+    def testPassedW = testPassedStoreMeta(_.store(testStoreObject, w = 2), _.getW, 2)
+    def testPassedPW = testPassedStoreMeta(_.store(testStoreObject, pw = 3), _.getPw, 3)
+    def testPassedDW = testPassedStoreMeta(_.store(testStoreObject, dw = 1), _.getDw, 1)
+    def testPassedReturnBody = testPassedStoreMeta(_.store(testStoreObject, returnBody = true), _.getReturnBody, true)
 
     val testDate = new Date(System.currentTimeMillis())
     val testVClock = mock[VClock]
