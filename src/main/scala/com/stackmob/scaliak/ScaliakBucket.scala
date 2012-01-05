@@ -148,13 +148,10 @@ class ScaliakBucket(rawClient: RawClient,
     val scaliakConverter:ScaliakConverter[T] = step.converters
     val linkWalkSteps:LinkWalkSteps = step.linkWalkSteps
     linkWalk(obj, linkWalkSteps).map { iteratorOfIterators =>
-      iterableToNEL(iteratorOfIterators) match {
-        case Some(outerNel:NonEmptyList[Iterable[LinkWalkResult]]) => {
-          {
-            for(innerNel <- iterableToNEL(outerNel.head)) yield (convertNel(innerNel, scaliakConverter))
-          } some { tup => tup } none { (new NoConvertiblesError(1).failNel[NonEmptyList[T]]) }
-        }
-      }
+      {
+        for(outerNel <- iterableToNEL(iteratorOfIterators);
+          innerNel <- iterableToNEL(outerNel.head)) yield (convertNel(innerNel, scaliakConverter))
+      } some { tup => tup } none { (new NoConvertiblesError(1).failNel[NonEmptyList[T]]) }
     }
   }
 
@@ -164,16 +161,13 @@ class ScaliakBucket(rawClient: RawClient,
     val converters:(ScaliakConverter[T], ScaliakConverter[U]) = step.converters
     val linkWalkSteps:LinkWalkSteps = step.linkWalkSteps
     linkWalk(obj, linkWalkSteps).map { iteratorOfIterators =>
-      iterableToNEL(iteratorOfIterators) match {
-        case Some(outerNel:NonEmptyList[Iterable[LinkWalkResult]]) => {
-          {
-            for(firstInnerNel <- iterableToNEL(outerNel.head);
-              secondInnerNel <- iterableToNEL(outerNel.tail.head)) yield (convertNel(firstInnerNel, converters._1),
-                convertNel(secondInnerNel, converters._2))
-          } some { tup => tup } none {
-            (new NoConvertiblesError(1).failNel[NonEmptyList[T]], new NoConvertiblesError(2).failNel[NonEmptyList[U]])
-          }
-        }
+      {
+        for(outerNel <- iterableToNEL(iteratorOfIterators);
+          firstInnerNel <- iterableToNEL(outerNel.head);
+          secondInnerNel <- iterableToNEL(outerNel.tail.head)) yield (convertNel(firstInnerNel, converters._1),
+            convertNel(secondInnerNel, converters._2))
+      } some { tup => tup } none {
+        (new NoConvertiblesError(1).failNel[NonEmptyList[T]], new NoConvertiblesError(2).failNel[NonEmptyList[U]])
       }
     }
   }
@@ -184,20 +178,17 @@ class ScaliakBucket(rawClient: RawClient,
     val converters:(ScaliakConverter[T], ScaliakConverter[U], ScaliakConverter[V]) = step.converters
     val linkWalkSteps:LinkWalkSteps = step.linkWalkSteps
     linkWalk(obj, linkWalkSteps).map { iteratorOfIterators =>
-      iterableToNEL(iteratorOfIterators) match {
-        case Some(outerNel:NonEmptyList[Iterable[LinkWalkResult]]) => {
-          {
-            for(firstInnerNel <- iterableToNEL(outerNel.head);
-              secondInnerNel <- iterableToNEL(outerNel.tail.head);
-              thirdInnerNel <- iterableToNEL(outerNel.tail.tail.head)) yield (convertNel(firstInnerNel, converters._1),
-                convertNel(secondInnerNel, converters._2),
-                convertNel(thirdInnerNel, converters._3))
-          } some { tup => tup } none {
-            (new NoConvertiblesError(1).failNel[NonEmptyList[T]],
-              new NoConvertiblesError(2).failNel[NonEmptyList[U]],
-              new NoConvertiblesError(3).failNel[NonEmptyList[V]])
-          }
-        }
+      {
+        for(outerNel <- iterableToNEL(iteratorOfIterators);
+          firstInnerNel <- iterableToNEL(outerNel.head);
+          secondInnerNel <- iterableToNEL(outerNel.tail.head);
+          thirdInnerNel <- iterableToNEL(outerNel.tail.tail.head)) yield (convertNel(firstInnerNel, converters._1),
+            convertNel(secondInnerNel, converters._2),
+            convertNel(thirdInnerNel, converters._3))
+      } some { tup => tup } none {
+        (new NoConvertiblesError(1).failNel[NonEmptyList[T]],
+          new NoConvertiblesError(2).failNel[NonEmptyList[U]],
+          new NoConvertiblesError(3).failNel[NonEmptyList[V]])
       }
     }
   }
@@ -208,23 +199,20 @@ class ScaliakBucket(rawClient: RawClient,
     val converters:(ScaliakConverter[T], ScaliakConverter[U], ScaliakConverter[V], ScaliakConverter[W]) = step.converters
     val linkWalkSteps:LinkWalkSteps = step.linkWalkSteps
     linkWalk(obj, linkWalkSteps).map { iteratorOfIterators =>
-      iterableToNEL(iteratorOfIterators) match {
-        case Some(outerNel:NonEmptyList[Iterable[LinkWalkResult]]) => {
-          {
-            for(firstInnerNel <- iterableToNEL(outerNel.head);
-              secondInnerNel <- iterableToNEL(outerNel.tail.head);
-              thirdInnerNel <- iterableToNEL(outerNel.tail.tail.head);
-              fourthInnerNel <- iterableToNEL(outerNel.tail.tail.tail.head)) yield (convertNel(firstInnerNel, converters._1),
-                convertNel(secondInnerNel, converters._2),
-                convertNel(thirdInnerNel, converters._3),
-                convertNel(fourthInnerNel, converters._4))
-          } some { tup => tup } none {
-            (new NoConvertiblesError(1).failNel[NonEmptyList[T]],
-              new NoConvertiblesError(2).failNel[NonEmptyList[U]],
-              new NoConvertiblesError(3).failNel[NonEmptyList[V]],
-              new NoConvertiblesError(4).failNel[NonEmptyList[W]])
-          }
-        }
+      {
+        for(outerNel <- iterableToNEL(iteratorOfIterators);
+          firstInnerNel <- iterableToNEL(outerNel.head);
+          secondInnerNel <- iterableToNEL(outerNel.tail.head);
+          thirdInnerNel <- iterableToNEL(outerNel.tail.tail.head);
+          fourthInnerNel <- iterableToNEL(outerNel.tail.tail.tail.head)) yield (convertNel(firstInnerNel, converters._1),
+            convertNel(secondInnerNel, converters._2),
+            convertNel(thirdInnerNel, converters._3),
+            convertNel(fourthInnerNel, converters._4))
+      } some { tup => tup } none {
+        (new NoConvertiblesError(1).failNel[NonEmptyList[T]],
+          new NoConvertiblesError(2).failNel[NonEmptyList[U]],
+          new NoConvertiblesError(3).failNel[NonEmptyList[V]],
+          new NoConvertiblesError(4).failNel[NonEmptyList[W]])
       }
     }
   }
@@ -235,26 +223,23 @@ class ScaliakBucket(rawClient: RawClient,
     val converters:(ScaliakConverter[T], ScaliakConverter[U], ScaliakConverter[V], ScaliakConverter[W], ScaliakConverter[X]) = step.converters
     val linkWalkSteps:LinkWalkSteps = step.linkWalkSteps
     linkWalk(obj, linkWalkSteps).map { iteratorOfIterators =>
-      iterableToNEL(iteratorOfIterators) match {
-        case Some(outerNel:NonEmptyList[Iterable[LinkWalkResult]]) => {
-          {
-            for(firstInnerNel <- iterableToNEL(outerNel.head);
-              secondInnerNel <- iterableToNEL(outerNel.tail.head);
-              thirdInnerNel <- iterableToNEL(outerNel.tail.tail.head);
-              fourthInnerNel <- iterableToNEL(outerNel.tail.tail.tail.head);
-              fifthInnerNel <- iterableToNEL(outerNel.tail.tail.tail.tail.head)) yield (convertNel(firstInnerNel, converters._1),
-                convertNel(secondInnerNel, converters._2),
-                convertNel(thirdInnerNel, converters._3),
-                convertNel(fourthInnerNel, converters._4),
-                convertNel(fifthInnerNel, converters._5))
-          } some {tup => tup } none {
-            (new NoConvertiblesError(1).failNel[NonEmptyList[T]],
-              new NoConvertiblesError(2).failNel[NonEmptyList[U]],
-              new NoConvertiblesError(3).failNel[NonEmptyList[V]],
-              new NoConvertiblesError(4).failNel[NonEmptyList[W]],
-              new NoConvertiblesError(5).failNel[NonEmptyList[X]])
-          }
-        }
+      {
+        for(outerNel <- iterableToNEL(iteratorOfIterators);
+          firstInnerNel <- iterableToNEL(outerNel.head);
+          secondInnerNel <- iterableToNEL(outerNel.tail.head);
+          thirdInnerNel <- iterableToNEL(outerNel.tail.tail.head);
+          fourthInnerNel <- iterableToNEL(outerNel.tail.tail.tail.head);
+          fifthInnerNel <- iterableToNEL(outerNel.tail.tail.tail.tail.head)) yield (convertNel(firstInnerNel, converters._1),
+            convertNel(secondInnerNel, converters._2),
+            convertNel(thirdInnerNel, converters._3),
+            convertNel(fourthInnerNel, converters._4),
+            convertNel(fifthInnerNel, converters._5))
+      } some {tup => tup } none {
+        (new NoConvertiblesError(1).failNel[NonEmptyList[T]],
+          new NoConvertiblesError(2).failNel[NonEmptyList[U]],
+          new NoConvertiblesError(3).failNel[NonEmptyList[V]],
+          new NoConvertiblesError(4).failNel[NonEmptyList[W]],
+          new NoConvertiblesError(5).failNel[NonEmptyList[X]])
       }
     }
   }
