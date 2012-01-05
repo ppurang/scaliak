@@ -185,6 +185,12 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       "Setting the return body value"                                               ^
         "if not set the generated meta has a false return body"                     ! riakArguments.testDefaultReturnBody ^
         "if set the generated meta has the given return body"                       ! riakArguments.testPassedReturnBody ^p^
+      "Setting if none match"                                                       ^
+        "if not set the generated meta has a null array of etags"                   ! riakArguments.testDefaultIfNoneMatch ^
+        "if set the generated meta has a array of etags containing only the vtag"   ! riakArguments.testPassedIfNoneMatch ^p^
+      "Setting if not modified"                                                     ^
+        "if not set the generated meta has a null last modified timestamp"          ! riakArguments.testDefaultIfNotModified ^
+        "if set the genereated meta has the last modified timestamp set"            ! riakArguments.testPassedIfNotModified ^
                                                                                     endp^
   "Deleting Data"                                                                   ^
     "By Key"                                                                        ^
@@ -557,7 +563,25 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     // these aren't really used
     val rawClient = mock[RawClient]
     val bucket = createBucket
-    
+
+
+    val testVTag = "test"
+    val lastModified = new java.util.Date(System.currentTimeMillis)
+    val mockRiakObj1 = mockRiakObj(testBucket, testKey, "".getBytes(), "text/plain", "vclock", vTag = testVTag, lastModified = lastModified)
+
+    val testStoreObject = new ScaliakObject(
+      testKey,
+      testBucket,
+      testContentType,
+      null,
+      "".getBytes,
+      links = nel(ScaliakLink("test", "test", "test")).some,
+      metadata = Map("m1" -> "v1", "m2" -> "v2"),
+      vTag = testVTag,
+      lastModified = lastModified
+    )
+
+
     class FetchMetaExtractor extends util.MockitoArgumentExtractor[FetchMeta]
     class StoreMetaExtractor extends util.MockitoArgumentExtractor[StoreMeta]
     
@@ -611,16 +635,6 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     def testPutDefaultStoreMeta[T](metaProp: StoreMeta => T) = testDefaultStoreMetaBase(metaProp, _.put(testStoreObject))
 
 
-    val testStoreObject = new ScaliakObject(
-      testKey,
-      testBucket,
-      testContentType,
-      null,
-      "".getBytes,
-      links = nel(ScaliakLink("test", "test", "test")).some,
-      metadata = Map("m1" -> "v1", "m2" -> "v2")
-    )
-
     def testPassedFetchMeta[T](f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]], metaProp: FetchMeta => T, expected: T) = {
       testArg(f).argument must beSome.like {
         case meta => metaProp(meta) must beEqualTo(expected)
@@ -645,11 +659,13 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     def testWriteDefaultPR = testWriteDefaultFetchMeta(_.getPr)
     def testWriteDefaultNotFoundOk = testWriteDefaultFetchMeta(_.getNotFoundOK)
     def testWriteDefaultBasicQuorum = testWriteDefaultFetchMeta(_.getBasicQuorum)
-    def testWriteDefaultReturnedVClock = testWriteDefaultFetchMeta(_.getReturnDeletedVClock)
+    def testWriteDefaultReturnedVClock = testWriteDefaultFetchMeta(_.getReturnDeletedVClock)    
 
     def testDefaultW = testDefaultStoreMeta(_.getW)
     def testDefaultDW = testDefaultStoreMeta(_.getDw)
     def testDefaultPW = testDefaultStoreMeta(_.getPw)
+    def testDefaultIfNoneMatch = testDefaultStoreMeta(_.getEtags)
+    def testDefaultIfNotModified = testDefaultStoreMeta(_.getLastModified)
     def testDefaultReturnBody = testWriteArg(_.store(testStoreObject)).argument must beSome.like {
       case meta => meta.getReturnBody must beEqualTo(false)
     }
@@ -679,6 +695,8 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     def testPassedPW = testPassedStoreMeta(_.store(testStoreObject, pw = 3), _.getPw, 3)
     def testPassedDW = testPassedStoreMeta(_.store(testStoreObject, dw = 1), _.getDw, 1)
     def testPassedReturnBody = testPassedStoreMeta(_.store(testStoreObject, returnBody = true), _.getReturnBody, true)
+    def testPassedIfNoneMatch = testPassedStoreMeta(_.store(testStoreObject, ifNoneMatch = true), _.getEtags.headOption, Option(testVTag))
+    def testPassedIfNotModified = testPassedStoreMeta(_.store(testStoreObject, ifNotModified = true), _.getLastModified, lastModified)
 
     def testPassedWPut = testPassedStoreMeta(_.put(testStoreObject, w = 2), _.getW, 2)
     def testPassedPWPut = testPassedStoreMeta(_.put(testStoreObject, pw = 3), _.getPw, 3)

@@ -100,6 +100,8 @@ sealed trait PartialScaliakObject {
   def _links: Option[NonEmptyList[ScaliakLink]]
   def _metadata: Map[String, String]
   def _vClock: Option[VClock]
+  def _vTag: String
+  def _lastModified: java.util.Date
 
   def asRiak(bucket: String, vClock: VClock): IRiakObject = {
     val builder = (RiakObjectBuilder.newBuilder(bucket, _key)
@@ -110,6 +112,9 @@ sealed trait PartialScaliakObject {
     )
     if (vClock != null) builder withVClock vClock
     else _vClock foreach builder.withVClock
+
+    if (!_vTag.isEmpty) builder.withVtag(_vTag)
+    if (_lastModified != null) builder.withLastModified(_lastModified.getTime)
 
     builder.build
   }
@@ -122,13 +127,18 @@ object PartialScaliakObject {
             contentType: String = RiakConstants.CTYPE_TEXT_UTF8, 
             links: Option[NonEmptyList[ScaliakLink]] = none,
             metadata: Map[String, String] = Map(),
-            vClock: Option[VClock] = none) = new PartialScaliakObject {
+            vClock: Option[VClock] = none,
+            vTag: String = "",
+            lastModified: java.util.Date = null) = new PartialScaliakObject {
     def _key = key
     def _bytes = value
     def _contentType = Option(contentType)
     def _links = links
     def _metadata = metadata
     def _vClock = vClock
+    def _vTag = vTag
+    def _lastModified = lastModified
+    
   }
   
 }

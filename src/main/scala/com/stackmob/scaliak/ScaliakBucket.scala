@@ -107,7 +107,9 @@ class ScaliakBucket(rawClient: RawClient,
                w: WArgument = WArgument(),
                pw: PWArgument = PWArgument(),
                dw: DWArgument = DWArgument(),
-               returnBody: ReturnBodyArgument = ReturnBodyArgument())
+               returnBody: ReturnBodyArgument = ReturnBodyArgument(),
+               ifNoneMatch: Boolean = false,
+               ifNotModified: Boolean = false)
               (implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T], mutator: ScaliakMutation[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
     //TODO: need to not convert the object here
     // it causes two calls to converter.write.
@@ -123,7 +125,11 @@ class ScaliakBucket(rawClient: RawClient,
       fetchRes flatMap {
         mbFetched => {
           val objToStore = converter.write(mutator(mbFetched, obj)).asRiak(name, resp.getVclock)
-          riakResponseToResult(rawClient.store(objToStore, prepareStoreMeta(w, pw, dw, returnBody)))
+          val storeMeta = prepareStoreMeta(w, pw, dw, returnBody)
+          if (ifNoneMatch) storeMeta.etags(Array(objToStore.getVtag))
+          if (ifNotModified) storeMeta.lastModified(objToStore.getLastModified)
+
+          riakResponseToResult(rawClient.store(objToStore, storeMeta))
         }
       }
     }) except { t => t.failNel.pure[IO] }
@@ -208,7 +214,7 @@ class ScaliakBucket(rawClient: RawClient,
   private def prepareStoreMeta(w: WArgument, pw: PWArgument, dw: DWArgument, returnBody: ReturnBodyArgument) = {
     val storeMetaBuilder = new StoreMeta.Builder()
     List(w, pw, dw, returnBody) foreach { _ addToMeta storeMetaBuilder }
-    storeMetaBuilder.build()
+    storeMetaBuilder.build
   }
 
   private def prepareDeleteMeta(mbResponse: Option[RiakResponse], deleteMetaBuilder: DeleteMeta.Builder) = {
@@ -245,7 +251,9 @@ trait ScaliakConverters {
   lazy val PassThroughConverter = newConverter[ScaliakObject](
     (o =>
       o.successNel[Throwable]),
-    (o => PartialScaliakObject(o.key, o.bytes, o.contentType, o.links, o.metadata))
+    (o =>
+      PartialScaliakObject(key = o.key, value = o.bytes, contentType = o.contentType,
+        links = o.links, metadata = o.metadata, vTag = o.vTag, lastModified = o.lastModified))
   )
 }
 
