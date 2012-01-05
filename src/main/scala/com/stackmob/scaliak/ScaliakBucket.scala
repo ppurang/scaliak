@@ -134,9 +134,15 @@ class ScaliakBucket(rawClient: RawClient,
    * With a bucket that has allow_mult set to true, using "put" instead of "store"
    * will result in significantly more conflicts
    */
-  def put[T](obj: T)(implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
-    val emptyStoreMeta = new StoreMeta.Builder().build()
-    (for (resp <- rawClient.store(converter.write(obj).asRiak(name, null), emptyStoreMeta).pure[IO]) yield riakResponseToResult(resp)) except {
+  def put[T](obj: T,
+             w: WArgument = WArgument(),
+             pw: PWArgument = PWArgument(),
+             dw: DWArgument = DWArgument(),
+             returnBody: ReturnBodyArgument = ReturnBodyArgument())
+            (implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
+    rawClient.store(converter.write(obj).asRiak(name, null), prepareStoreMeta(w, pw, dw, returnBody)).pure[IO] map {
+      riakResponseToResult(_)
+    } except {
       _.failNel.pure[IO]
     }
   }

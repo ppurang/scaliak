@@ -143,6 +143,18 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     "Without Reading First"                                                         ^
       "Does not call read before writing the data"                                  ! writeOnly.writesButNoRead ^
       "Preserves the VClock from the generated PartialScaliakObject if there is one"! writeOnly.usesPartialScaliakObjectVClock ^
+      "Setting the w value for the request"                                         ^
+        "if not set the generated meta has a null w value"                          ! riakArguments.testDefaultWPut ^
+        "if set the generated meta has the given w value"                           ! riakArguments.testPassedWPut ^p^
+      "Setting the pw value for the request"                                        ^
+        "if not set the generated meta has a null pw value"                         ! riakArguments.testDefaultPWPut ^
+        "if set the generated meta has the given pw value"                          ! riakArguments.testPassedPWPut ^p^
+      "Setting the dw value for the request"                                        ^
+        "if not set the generated meta has a null dw value"                         ! riakArguments.testDefaultDWPut ^
+        "if set the generated meta has the given dw value"                          ! riakArguments.testPassedDWPut ^p^
+      "Setting the return body value"                                               ^
+        "if not set the generated meta has a false return body"                     ! riakArguments.testDefaultReturnBodyPut ^
+        "if set the generated meta has the given return body"                       ! riakArguments.testPassedReturnBodyPut ^p^
                                                                                     p^
     "Read Properties"                                                               ^
       "Setting the r value for the request"                                         ^
@@ -584,15 +596,19 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
         case meta => metaProp(meta) must beNull
       }
     }
+    
+    def testDefaultStoreMetaBase[T](metaProp: StoreMeta => T, f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]]) = {
+      testWriteArg(f).argument must beSome.like {
+        case meta => metaProp(meta) must beNull
+      }
+    }
 
     def testDefaultFetchMeta[T](metaProp: FetchMeta => T) = testDefaultFetchMetaBase(metaProp, _.fetch(testKey))
     def testWriteDefaultFetchMeta[T](metaProp: FetchMeta => T) = testDefaultFetchMetaBase(metaProp, _.store(testStoreObject))
 
-    def testDefaultStoreMeta[T](metaProp: StoreMeta => T) = {
-      testWriteArg(_.store(testStoreObject)).argument must beSome.like {
-        case meta => metaProp(meta) must beNull
-      }
-    }
+        
+    def testDefaultStoreMeta[T](metaProp: StoreMeta => T) = testDefaultStoreMetaBase(metaProp, _.store(testStoreObject))
+    def testPutDefaultStoreMeta[T](metaProp: StoreMeta => T) = testDefaultStoreMetaBase(metaProp, _.put(testStoreObject))
 
 
     val testStoreObject = new ScaliakObject(
@@ -637,6 +653,13 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     def testDefaultReturnBody = testWriteArg(_.store(testStoreObject)).argument must beSome.like {
       case meta => meta.getReturnBody must beEqualTo(false)
     }
+    
+    def testDefaultWPut = testPutDefaultStoreMeta(_.getW)
+    def testDefaultDWPut = testPutDefaultStoreMeta(_.getDw)
+    def testDefaultPWPut = testPutDefaultStoreMeta(_.getPw)
+    def testDefaultReturnBodyPut = testWriteArg(_.put(testStoreObject)).argument must beSome.like {
+      case meta => meta.getReturnBody must beEqualTo(false)
+    }
 
     def testPassedR = testPassedFetchMeta(_.fetch(testKey, r = 3), _.getR, 3)
     def testPassedPR = testPassedFetchMeta(_.fetch(testKey, pr = 2), _.getPr, 2)
@@ -656,6 +679,11 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     def testPassedPW = testPassedStoreMeta(_.store(testStoreObject, pw = 3), _.getPw, 3)
     def testPassedDW = testPassedStoreMeta(_.store(testStoreObject, dw = 1), _.getDw, 1)
     def testPassedReturnBody = testPassedStoreMeta(_.store(testStoreObject, returnBody = true), _.getReturnBody, true)
+
+    def testPassedWPut = testPassedStoreMeta(_.put(testStoreObject, w = 2), _.getW, 2)
+    def testPassedPWPut = testPassedStoreMeta(_.put(testStoreObject, pw = 3), _.getPw, 3)
+    def testPassedDWPut = testPassedStoreMeta(_.put(testStoreObject, dw = 1), _.getDw, 1)
+    def testPassedReturnBodyPut = testPassedStoreMeta(_.put(testStoreObject, returnBody = true), _.getReturnBody, true)
 
     val testDate = new Date(System.currentTimeMillis())
     val testVClock = mock[VClock]
