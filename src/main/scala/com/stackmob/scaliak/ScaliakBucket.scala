@@ -134,13 +134,12 @@ class ScaliakBucket(rawClient: RawClient,
 
   private def convertNel[T](nel: NonEmptyList[LinkWalkResult], converter:ScaliakConverter[T]):ValidationNEL[Throwable, NonEmptyList[T]] = {
     val converted:NonEmptyList[ValidationNEL[Throwable, T]] = nel.map { lwr => converter.read(lwr.obj) }
-    type sequenceTypeAlias[U] = ValidationNEL[Throwable, NonEmptyList[U]]
-    converted.sequence[sequenceTypeAlias, T]
-//    converted.traverse[sequenceTypeAlias, T](identity(_))
+    type Alias[U] = ValidationNEL[Throwable, U]
+    converted.sequence[Alias, T]
   }
 
   //the following 5 methods are for type-safe link walking.
-  //their implementation involves highly repetitive code because at their core they each are converting
+  //their implementation involves repetitive code because at their core they each are converting
   //NonEmptyList instances to N-tuples (where N is dependent on the method), and there's obviously no generic way to do that.
 
   def linkWalk[T](obj:ScaliakObject, step:LinkWalkStepWith1Converter[T]):
@@ -151,12 +150,10 @@ class ScaliakBucket(rawClient: RawClient,
     linkWalk(obj, linkWalkSteps).map { iteratorOfIterators =>
       iterableToNEL(iteratorOfIterators) match {
         case Some(outerNel:NonEmptyList[Iterable[LinkWalkResult]]) => {
-          iterableToNEL(outerNel.head) match {
-            case Some(innerNel:NonEmptyList[LinkWalkResult]) => (convertNel(innerNel, scaliakConverter))
-            case None => (new NoConvertiblesError(1).failNel[NonEmptyList[T]])
-          }
+          {
+            for(innerNel <- iterableToNEL(outerNel.head)) yield (convertNel(innerNel, scaliakConverter))
+          } some { tup => tup } none { (new NoConvertiblesError(1).failNel[NonEmptyList[T]]) }
         }
-        case None => (new NoConvertiblesError(1).failNel[NonEmptyList[T]])
       }
     }
   }
@@ -169,14 +166,12 @@ class ScaliakBucket(rawClient: RawClient,
     linkWalk(obj, linkWalkSteps).map { iteratorOfIterators =>
       iterableToNEL(iteratorOfIterators) match {
         case Some(outerNel:NonEmptyList[Iterable[LinkWalkResult]]) => {
-          iterableToNEL(outerNel.head) match {
-            case Some(firstInnerNel:NonEmptyList[LinkWalkResult]) => {
-              iterableToNEL(outerNel.tail.head) match {
-                case Some(secondInnerNel:NonEmptyList[LinkWalkResult]) => (convertNel(firstInnerNel, converters._1), convertNel(secondInnerNel, converters._2))
-                case None => (convertNel(firstInnerNel, converters._1), new NoConvertiblesError(2).failNel[NonEmptyList[U]])
-              }
-            }
-            case None => (new NoConvertiblesError(1).failNel[NonEmptyList[T]], new NoConvertiblesError(2).failNel[NonEmptyList[U]])
+          {
+            for(firstInnerNel <- iterableToNEL(outerNel.head);
+              secondInnerNel <- iterableToNEL(outerNel.tail.head)) yield (convertNel(firstInnerNel, converters._1),
+                convertNel(secondInnerNel, converters._2))
+          } some { tup => tup } none {
+            (new NoConvertiblesError(1).failNel[NonEmptyList[T]], new NoConvertiblesError(2).failNel[NonEmptyList[U]])
           }
         }
       }
@@ -191,19 +186,16 @@ class ScaliakBucket(rawClient: RawClient,
     linkWalk(obj, linkWalkSteps).map { iteratorOfIterators =>
       iterableToNEL(iteratorOfIterators) match {
         case Some(outerNel:NonEmptyList[Iterable[LinkWalkResult]]) => {
-          iterableToNEL(outerNel.head) match {
-            case Some(firstInnerNel:NonEmptyList[LinkWalkResult]) => {
-              iterableToNEL(outerNel.tail.head) match {
-                case Some(secondInnerNel:NonEmptyList[LinkWalkResult]) => {
-                  iterableToNEL(outerNel.tail.tail.head) match {
-                    case Some(thirdInnerNel:NonEmptyList[LinkWalkResult]) => (convertNel(firstInnerNel, converters._1), convertNel(secondInnerNel, converters._2), convertNel(thirdInnerNel, converters._3))
-                    case None => (convertNel(firstInnerNel, converters._1), convertNel(secondInnerNel, converters._2), new NoConvertiblesError(3).failNel[NonEmptyList[V]])
-                  }
-                }
-                case None => (convertNel(firstInnerNel, converters._1), new NoConvertiblesError(2).failNel[NonEmptyList[U]], new NoConvertiblesError(3).failNel[NonEmptyList[V]])
-              }
-            }
-            case None => (new NoConvertiblesError(1).failNel[NonEmptyList[T]], new NoConvertiblesError(2).failNel[NonEmptyList[U]], new NoConvertiblesError(3).failNel[NonEmptyList[V]])
+          {
+            for(firstInnerNel <- iterableToNEL(outerNel.head);
+              secondInnerNel <- iterableToNEL(outerNel.tail.head);
+              thirdInnerNel <- iterableToNEL(outerNel.tail.tail.head)) yield (convertNel(firstInnerNel, converters._1),
+                convertNel(secondInnerNel, converters._2),
+                convertNel(thirdInnerNel, converters._3))
+          } some { tup => tup } none {
+            (new NoConvertiblesError(1).failNel[NonEmptyList[T]],
+              new NoConvertiblesError(2).failNel[NonEmptyList[U]],
+              new NoConvertiblesError(3).failNel[NonEmptyList[V]])
           }
         }
       }
@@ -218,34 +210,16 @@ class ScaliakBucket(rawClient: RawClient,
     linkWalk(obj, linkWalkSteps).map { iteratorOfIterators =>
       iterableToNEL(iteratorOfIterators) match {
         case Some(outerNel:NonEmptyList[Iterable[LinkWalkResult]]) => {
-          iterableToNEL(outerNel.head) match {
-            case Some(firstInnerNel:NonEmptyList[LinkWalkResult]) => {
-              iterableToNEL(outerNel.tail.head) match {
-                case Some(secondInnerNel:NonEmptyList[LinkWalkResult]) => {
-                  iterableToNEL(outerNel.tail.tail.head) match {
-                    case Some(thirdInnerNel:NonEmptyList[LinkWalkResult]) => {
-                      iterableToNEL(outerNel.tail.tail.head) match {
-                        case Some(fourthInnerNel:NonEmptyList[LinkWalkResult]) =>
-                          (convertNel(firstInnerNel, converters._1), convertNel(secondInnerNel, converters._2), convertNel(thirdInnerNel, converters._3), convertNel(fourthInnerNel, converters._4))
-                        case None => (convertNel(firstInnerNel, converters._1),
-                          convertNel(secondInnerNel, converters._2),
-                          convertNel(thirdInnerNel, converters._3),
-                          new NoConvertiblesError(4).failNel[NonEmptyList[W]])
-                      }
-                    }
-                    case None => (convertNel(firstInnerNel, converters._1),
-                      convertNel(secondInnerNel, converters._2),
-                      new NoConvertiblesError(3).failNel[NonEmptyList[V]],
-                      new NoConvertiblesError(4).failNel[NonEmptyList[W]])
-                  }
-                }
-                case None => (convertNel(firstInnerNel, converters._1),
-                  new NoConvertiblesError(2).failNel[NonEmptyList[U]],
-                  new NoConvertiblesError(3).failNel[NonEmptyList[V]],
-                  new NoConvertiblesError(4).failNel[NonEmptyList[W]])
-              }
-            }
-            case None => (new NoConvertiblesError(1).failNel[NonEmptyList[T]],
+          {
+            for(firstInnerNel <- iterableToNEL(outerNel.head);
+              secondInnerNel <- iterableToNEL(outerNel.tail.head);
+              thirdInnerNel <- iterableToNEL(outerNel.tail.tail.head);
+              fourthInnerNel <- iterableToNEL(outerNel.tail.tail.tail.head)) yield (convertNel(firstInnerNel, converters._1),
+                convertNel(secondInnerNel, converters._2),
+                convertNel(thirdInnerNel, converters._3),
+                convertNel(fourthInnerNel, converters._4))
+          } some { tup => tup } none {
+            (new NoConvertiblesError(1).failNel[NonEmptyList[T]],
               new NoConvertiblesError(2).failNel[NonEmptyList[U]],
               new NoConvertiblesError(3).failNel[NonEmptyList[V]],
               new NoConvertiblesError(4).failNel[NonEmptyList[W]])
@@ -263,48 +237,18 @@ class ScaliakBucket(rawClient: RawClient,
     linkWalk(obj, linkWalkSteps).map { iteratorOfIterators =>
       iterableToNEL(iteratorOfIterators) match {
         case Some(outerNel:NonEmptyList[Iterable[LinkWalkResult]]) => {
-          iterableToNEL(outerNel.head) match {
-            case Some(firstInnerNel:NonEmptyList[LinkWalkResult]) => {
-              iterableToNEL(outerNel.tail.head) match {
-                case Some(secondInnerNel:NonEmptyList[LinkWalkResult]) => {
-                  iterableToNEL(outerNel.tail.tail.head) match {
-                    case Some(thirdInnerNel:NonEmptyList[LinkWalkResult]) => {
-                      iterableToNEL(outerNel.tail.tail.head) match {
-                        case Some(fourthInnerNel:NonEmptyList[LinkWalkResult]) => {
-                          iterableToNEL(outerNel.tail.tail.tail.head) match {
-                            case Some(fifthInnerNel:NonEmptyList[LinkWalkResult]) =>
-                              (convertNel(firstInnerNel, converters._1), convertNel(secondInnerNel, converters._2), convertNel(thirdInnerNel, converters._3), convertNel(fourthInnerNel, converters._4), convertNel(fifthInnerNel, converters._5))
-                            case None => (convertNel(firstInnerNel, converters._1),
-                              convertNel(secondInnerNel, converters._2),
-                              convertNel(thirdInnerNel, converters._3),
-                              convertNel(fourthInnerNel, converters._4),
-                              new NoConvertiblesError(5).failNel[NonEmptyList[X]])
-                          }
-                        }
-                        case None => {
-                          (convertNel(firstInnerNel, converters._1),
-                            convertNel(secondInnerNel, converters._2),
-                            convertNel(thirdInnerNel, converters._3),
-                            new NoConvertiblesError(4).failNel[NonEmptyList[W]],
-                            new NoConvertiblesError(5).failNel[NonEmptyList[X]])
-                        }
-                      }
-                    }
-                    case None => (convertNel(firstInnerNel, converters._1),
-                      convertNel(secondInnerNel, converters._2),
-                      new NoConvertiblesError(3).failNel[NonEmptyList[V]],
-                      new NoConvertiblesError(4).failNel[NonEmptyList[W]],
-                      new NoConvertiblesError(5).failNel[NonEmptyList[X]])
-                  }
-                }
-                case None => (convertNel(firstInnerNel, converters._1),
-                  new NoConvertiblesError(2).failNel[NonEmptyList[U]],
-                  new NoConvertiblesError(3).failNel[NonEmptyList[V]],
-                  new NoConvertiblesError(4).failNel[NonEmptyList[W]],
-                  new NoConvertiblesError(5).failNel[NonEmptyList[X]])
-              }
-            }
-            case None => (new NoConvertiblesError(1).failNel[NonEmptyList[T]],
+          {
+            for(firstInnerNel <- iterableToNEL(outerNel.head);
+              secondInnerNel <- iterableToNEL(outerNel.tail.head);
+              thirdInnerNel <- iterableToNEL(outerNel.tail.tail.head);
+              fourthInnerNel <- iterableToNEL(outerNel.tail.tail.tail.head);
+              fifthInnerNel <- iterableToNEL(outerNel.tail.tail.tail.tail.head)) yield (convertNel(firstInnerNel, converters._1),
+                convertNel(secondInnerNel, converters._2),
+                convertNel(thirdInnerNel, converters._3),
+                convertNel(fourthInnerNel, converters._4),
+                convertNel(fifthInnerNel, converters._5))
+          } some {tup => tup } none {
+            (new NoConvertiblesError(1).failNel[NonEmptyList[T]],
               new NoConvertiblesError(2).failNel[NonEmptyList[U]],
               new NoConvertiblesError(3).failNel[NonEmptyList[V]],
               new NoConvertiblesError(4).failNel[NonEmptyList[W]],
