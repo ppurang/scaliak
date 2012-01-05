@@ -139,6 +139,10 @@ class ScaliakBucket(rawClient: RawClient,
 //    converted.traverse[sequenceTypeAlias, T](identity(_))
   }
 
+  //the following 5 methods are for type-safe link walking.
+  //their implementation involves highly repetitive code because at their core they each are converting
+  //NonEmptyList instances to N-tuples (where N is dependent on the method), and there's obviously no generic way to do that.
+
   def linkWalk[T](obj:ScaliakObject, step:LinkWalkStepWith1Converter[T]):
     IO[(ValidationNEL[Throwable, NonEmptyList[T]])] = {
 
