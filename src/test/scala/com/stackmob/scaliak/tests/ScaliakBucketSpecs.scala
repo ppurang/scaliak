@@ -143,6 +143,36 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     "Without Reading First"                                                         ^
       "Does not call read before writing the data"                                  ! writeOnly.writesButNoRead ^
       "Preserves the VClock from the generated PartialScaliakObject if there is one"! writeOnly.usesPartialScaliakObjectVClock ^
+                                                                                    p^
+    "Read Properties"                                                               ^
+      "Setting the r value for the request"                                         ^
+        "if not set the generated meta has a null r value"                          ! fetchArguments.testWriteDefaultR ^
+        "if set the generated meta has the given r value"                           ! fetchArguments.testPassedRWrite ^p^
+      "Setting the pr value for the request"                                        ^
+        "if not set the generated meta has a null pr value"                         ! fetchArguments.testWriteDefaultPR ^
+        "if set the generated meta has the given pr value"                          ! fetchArguments.testPassedPRWrite ^p^
+      "Setting the notFoundOk value for the request"                                ^
+        "if not set the generated meta has a null notFoundOk value"                 ! fetchArguments.testWriteDefaultNotFoundOk ^
+        "if set the generated meta has the given notFoundOk value"                  ! fetchArguments.testPassedNotFoundOkWrite ^p^
+      "Setting the basicQuorum value for the request"                               ^
+        "if not set the generated meta has a null basicQuorum value"                ! fetchArguments.testWriteDefaultBasicQuorum ^
+        "if set the generated meta has the given basicQuorum value"                 ! fetchArguments.testPassedBasicQuorumWrite ^p^
+      "Setting the returnDeletedVClock value for the request"                       ^
+        "if not set the generated meta has a null returnDeletedVClock value"        ! fetchArguments.testWriteDefaultReturnedVClock ^
+        "if set the generated meta has the given returnDeletedVClock value"         ! fetchArguments.testPassedReturnVClockWrite ^p^p^
+    "Write Properties"                                                              ^
+      "Setting the w value for the request"                                         ^
+        "if not set the generated meta has a null w value"                          ! skipped ^
+        "if set the generated meta has the given w value"                           ! skipped ^p^
+      "Setting the pw value for the request"                                        ^
+        "if not set the generated meta has a null pw value"                         ! skipped ^
+        "if set the generated meta has the given pw value"                          ! skipped ^p^
+      "Setting the dw value for the request"                                        ^
+        "if not set the generated meta has a null dw value"                         ! skipped ^
+        "if set the generated meta has the given dw value"                          ! skipped ^p^
+      "Setting the return body value"                                               ^
+        "if not set the generated meta has a false return body"                     ! skipped ^
+        "if set the generated meta has the given return body"                       ! skipped ^p^
                                                                                     endp^
   "Deleting Data"                                                                   ^
     "By Key"                                                                        ^
@@ -532,11 +562,23 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       ex
     }
 
-    def testDefault[T](metaProp: FetchMeta => T) = {
-      (testArg { _.fetch(testKey) }).argument must beSome.like {
+    def testDefaultBase[T](metaProp: FetchMeta => T, f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]]) = {
+      testArg(f).argument must beSome.like {
         case meta => metaProp(meta) must beNull
       }
     }
+
+    val testStoreObject = new ScaliakObject(
+      testKey,
+      testBucket,
+      testContentType,
+      null,
+      "".getBytes,
+      links = nel(ScaliakLink("test", "test", "test")).some,
+      metadata = Map("m1" -> "v1", "m2" -> "v2")
+    )
+    def testDefault[T](metaProp: FetchMeta => T) = testDefaultBase(metaProp, _.fetch(testKey))
+    def testWriteDefault[T](metaProp: FetchMeta => T) = testDefaultBase(metaProp, _.store(testStoreObject))
     
     def testPassed[T](f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]], metaProp: FetchMeta => T, expected: T) = {
       testArg(f).argument must beSome.like {
@@ -552,6 +594,12 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     def testDefaultModifiedSince = testDefault(_.getIfModifiedSince)
     def testDefaultIfModified = testDefault(_.getIfModifiedVClock)
 
+    def testWriteDefaultR = testWriteDefault(_.getR)
+    def testWriteDefaultPR = testWriteDefault(_.getPr)
+    def testWriteDefaultNotFoundOk = testWriteDefault(_.getNotFoundOK)
+    def testWriteDefaultBasicQuorum = testWriteDefault(_.getBasicQuorum)
+    def testWriteDefaultReturnedVClock = testWriteDefault(_.getReturnDeletedVClock)
+
     def testPassedR = testPassed(_.fetch(testKey, r = 3), _.getR, 3)
     def testPassedPR = testPassed(_.fetch(testKey, pr = 2), _.getPr, 2)
     def testPassedNotFoundOk = testPassed(_.fetch(testKey, notFoundOk = true), _.getNotFoundOK, true)
@@ -559,6 +607,12 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     def testPassedReturnedVClock = testPassed(_.fetch(testKey, returnDeletedVClock = true), _.getReturnDeletedVClock, true)
     def testPassedModifiedSince = testPassed(_.fetch(testKey, ifModifiedSince = testDate), _.getIfModifiedSince, testDate)
     def testPassedIfModified = testPassed(_.fetch(testKey, ifModified = testVClock), _.getIfModifiedVClock, testVClock)
+
+    def testPassedRWrite = testPassed(_.store(testStoreObject, r = 2), _.getR, 2)
+    def testPassedPRWrite = testPassed(_.store(testStoreObject, pr = 1), _.getPr, 1)
+    def testPassedNotFoundOkWrite = testPassed(_.store(testStoreObject, notFoundOk = true), _.getNotFoundOK, true)
+    def testPassedBasicQuorumWrite = testPassed(_.store(testStoreObject, basicQuorum = true), _.getBasicQuorum, true)
+    def testPassedReturnVClockWrite = testPassed(_.store(testStoreObject, returnDeletedVClock = false), _.getReturnDeletedVClock, false)
 
     val testDate = new Date(System.currentTimeMillis())
     val testVClock = mock[VClock]

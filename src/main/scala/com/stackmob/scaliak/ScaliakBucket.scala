@@ -107,10 +107,13 @@ class ScaliakBucket(rawClient: RawClient,
   // returnBody - bool - store
   // ifNoneMatch - bool - store
   // ifNotModified - bool - store
-  def store[T](obj: T)(implicit
-                       converter: ScaliakConverter[T],
-                       resolver: ScaliakResolver[T],
-                       mutator: ScaliakMutation[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
+  def store[T](obj: T,
+               r: RArgument = RArgument(),
+               pr: PRArgument = PRArgument(),
+               notFoundOk: NotFoundOkArgument = NotFoundOkArgument(),
+               basicQuorum: BasicQuorumArgument = BasicQuorumArgument(),
+               returnDeletedVClock: ReturnDeletedVCLockArgument = ReturnDeletedVCLockArgument())
+              (implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T], mutator: ScaliakMutation[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
     val emptyStoreMeta = new StoreMeta.Builder().build() // TODO: support store meta arguments
     //TODO: need to not convert the object here
     // it causes two calls to converter.write.
@@ -120,7 +123,7 @@ class ScaliakBucket(rawClient: RawClient,
     // and remove it from PartialScaliakObject (change ParitalScaliakObject to ScaliakSerializable)
     val key = converter.write(obj)._key
     (for {
-      resp <- rawFetch(key)
+      resp <- rawFetch(key, r, pr, notFoundOk, basicQuorum, returnDeletedVClock)
       fetchRes <- riakResponseToResult(resp).pure[IO]
     } yield {
       fetchRes flatMap {
@@ -183,11 +186,11 @@ class ScaliakBucket(rawClient: RawClient,
   }
 
   private def rawFetch(key: String, 
-                       r: RArgument = RArgument(), 
-                       pr: PRArgument = PRArgument(),
-                       notFoundOk: NotFoundOkArgument = NotFoundOkArgument(),
-                       basicQuorum: BasicQuorumArgument = BasicQuorumArgument(),
-                       returnDeletedVClock: ReturnDeletedVCLockArgument = ReturnDeletedVCLockArgument(),
+                       r: RArgument,
+                       pr: PRArgument,
+                       notFoundOk: NotFoundOkArgument,
+                       basicQuorum: BasicQuorumArgument,
+                       returnDeletedVClock: ReturnDeletedVCLockArgument,
                        ifModifiedSince: IfModifiedSinceArgument = IfModifiedSinceArgument(),
                        ifModified: IfModifiedVClockArgument = IfModifiedVClockArgument()) = {
     val fetchMetaBuilder = new FetchMeta.Builder()
