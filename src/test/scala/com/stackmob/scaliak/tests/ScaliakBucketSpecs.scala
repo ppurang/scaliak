@@ -137,6 +137,10 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
           "Writes object converted to a PartialScaliakObject then a ScaliakObject"  ! writeExisting.domainObject ^p^
         "Given a mutator other than the default"                                    ^
           "Writes the object as returned from the mutator, converting it afterwards"! writeExisting.domainObjectCustomMutator ^
+                                                                                    p^p^p^
+    "Without Reading First"                                                         ^
+      "Does not call read before writing the data"                                  ! writeOnly.writesButNoRead ^
+      "Preserves the VClock from the generated PartialScaliakObject if there is one"! writeOnly.usesPartialScaliakObjectVClock ^
                                                                                     endp^
   "Deleting Data"                                                                   ^
     "By Key"                                                                        ^
@@ -420,6 +424,38 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
 
       newExtractor.argument must beSome.like {
         case o => o.getKey must beEqualTo(testKey + mutationValueAddition)
+      }
+    }
+  }
+
+  object writeOnly extends writeBase {
+    val mockFetchVClockStr = "test"
+    val extractor = new IRiakObjExtractor
+
+    def writesButNoRead = {
+      bucket.put(testStoreObject).unsafePerformIO // execute write only operation
+
+      there was no(rawClient).fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) then
+        one(rawClient).store(MM.isA(classOf[IRiakObject]), MM.isA(classOf[StoreMeta]))
+    }
+
+
+    def usesPartialScaliakObjectVClock = {
+      val newRawClient = mock[RawClient]
+      val newBucket = createBucketWithClient(newRawClient)
+      newRawClient.store(MM.argThat(extractor), MM.isA(classOf[StoreMeta])) returns null
+
+      val mockVClock = mock[VClock]
+      mockVClock.asString returns "test"
+      implicit val testConverter = ScaliakConverter.newConverter[ScaliakObject](
+        scObj => (new Exception("who cares")).failNel,
+        obj => PartialScaliakObject(obj.key, obj.bytes, vClock = mockVClock.some)
+      )
+
+      newBucket.put(testStoreObject).unsafePerformIO
+
+      extractor.argument must beSome.like {
+        case o => o.getVClock.asString must_== "test"
       }
     }
   }

@@ -90,6 +90,18 @@ class ScaliakBucket(rawClient: RawClient,
     }) except { t => t.failNel.pure[IO] }
   }
 
+  /*
+   * This should only be used in cases where the consequences are understood.
+   * With a bucket that has allow_mult set to true, using "put" instead of "store"
+   * will result in significantly more conflicts
+   */
+  def put[T](obj: T)(implicit converter: ScaliakConverter[T], resolver: ScaliakResolver[T]): IO[ValidationNEL[Throwable, Option[T]]] = {
+    val emptyStoreMeta = new StoreMeta.Builder().build()
+    (for (resp <- rawClient.store(converter.write(obj).asRiak(name, null), emptyStoreMeta).pure[IO]) yield riakResponseToResult(resp)) except {
+      _.failNel.pure[IO]
+    }
+  }
+
   // r - int
   // pr - int
   // w - int
