@@ -291,6 +291,8 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     val mockStoreObj = mockRiakObj(testBucket, testKey, testStoreObject.getBytes, testContentType, mock2VClockStr)
     val mockStoreResponse = mockRiakResponse(Array(mockStoreObj))
 
+    override lazy val result = bucket.store(testStoreObject, returnBody = true).unsafePerformIO
+
     val mock1VClockStr = "vclock1"
     val mockFetchObj = mockRiakObj(testBucket, testKey, "abc".getBytes, testContentType, mock1VClockStr)
     val mockFetchVClockStr = mock1VClockStr
@@ -313,6 +315,8 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     val mockStoreResponse = mockRiakResponse(Array(mockStoreObj))
     val mockFetchVClockStr = ""
     rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockRiakResponse(Array())
+
+    override lazy val result = bucket.store(testStoreObject, returnBody = true).unsafePerformIO
 
     val extractor = new IRiakObjExtractor
     rawClient.store(MM.argThat(extractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
