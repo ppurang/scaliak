@@ -22,6 +22,16 @@ package object mapping {
   def bytesValue(p: Array[Byte] => Boolean = (s => true))(obj: ScaliakObject): ValidationNEL[Throwable, Array[Byte]] = 
     readValue("value", p, _.bytes, obj)
   
+  def links(p: Option[NonEmptyList[ScaliakLink]] => Boolean = (s => true))(obj: ScaliakObject): ValidationNEL[Throwable, Option[NonEmptyList[ScaliakLink]]] = 
+    readValue("links (allowing for empty list)", p, _.links, obj)
+  
+  def nonEmptyLinks(p: NonEmptyList[ScaliakLink] => Boolean = (s => true))(obj: ScaliakObject): ValidationNEL[Throwable, NonEmptyList[ScaliakLink]] =
+    obj.links some { ls =>
+      if (p(ls)) ls.successNel[Throwable] else MappingError("links (non-empty)", ls).failNel
+    } none {
+      MappingError("links (non-empty)", obj.links).failNel
+    }
+  
   def riakMetadata(key: String, p: String => Boolean = (s => true))(obj: ScaliakObject): ValidationNEL[Throwable, String] = 
     obj.getMetadata(key) some { v =>
       if (p(v)) v.successNel[Throwable] else MetadataMappingError(key, v).failNel

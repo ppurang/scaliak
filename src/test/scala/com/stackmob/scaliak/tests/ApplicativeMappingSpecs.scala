@@ -4,8 +4,8 @@ import org.specs2._
 import mock._
 import scalaz._
 import Scalaz._
-import com.stackmob.scaliak.{ScaliakObject, ScaliakConverter}
 import com.basho.riak.client.cap.VClock
+import com.stackmob.scaliak.{ScaliakLink, ScaliakObject, ScaliakConverter}
 
 /**
  * Created by IntelliJ IDEA.
@@ -45,13 +45,23 @@ class ApplicativeMappingSpecs extends Specification with Mockito { def is =
         "returns failure with a MetadataMappingError if predicate is false"         ! metadata.testKeyExistsMissingPred ^p^
       "if the metadata key does not exist"                                          ^
         "returns failure with MissingMetadataMappingError no matter the predicate"  ! metadata.testKeyMissing ^
+                                                                                    p^p^
+    "Handling Links"                                                                ^
+      "Allowing for an empty list"                                                  ^
+        "returns success with the optional nel of links if no predicate is given"   ! link.testNoPredicateAllowOptional ^
+        "returns success with the optional nel of links if the predicate is true"   ! link.testTruePredicateAllowOptional ^
+        "returns failure if the predicate is false"                                 ! link.testFalsePredicateAllowOptional ^p^
+      "Failing on an empty list (stripping of the Option)"                          ^
+        "returns success with the nel of links if no predicate is given"            ! link.testNoPredicateNoOptional ^
+        "returns success with the nel of links if the predicate is true"            ! link.testTruePredicateNoOptional ^
+        "returns failure if the predicate is false"                                 ! link.testFalsePredicateNoOptional ^
                                                                                     endp^
   "Sanity Checking & Examples"                                                      ^
     "Key & Value using applicative builders"                                        ! examples.testKeyValueApplicative ^
     "Lifting function1"                                                             ! examples.testLift1 ^
     "Key & Value lifting a Function2"                                               ! examples.testKeyValueLift ^
                                                                                     end
-  //"Function Lifting Utilities"
+  
   // metadata as an entire map (support for existing or not, and just making it an option)
 
   import com.stackmob.scaliak.mapping._
@@ -173,14 +183,59 @@ class ApplicativeMappingSpecs extends Specification with Mockito { def is =
     
   }
 
+  object link {
+
+    case class DomainObject1(links: Option[NonEmptyList[ScaliakLink]])
+    case class DomainObject2(links: NonEmptyList[ScaliakLink])
+
+    def testNoPredicateAllowOptional = {
+      (links()(testObject.copy(links = None)) map { DomainObject1(_ )}).toOption must beSome.which { !_.links.isDefined }
+    }
+
+    def testNoPredicateNoOptional = {
+      (nonEmptyLinks()(testObject) map { DomainObject2(_) }).toOption must beSome.which { _.links.list == testLinks.list }
+    }
+    
+    def testTruePredicateAllowOptional = {
+      (links(_ => true)(testObject.copy(links = None)) map { DomainObject1(_ )}).toOption must beSome.which { !_.links.isDefined }
+    }
+    
+    def testTruePredicateNoOptional = {
+      (nonEmptyLinks(_ => true)(testObject) map { DomainObject2(_) }).toOption must beSome.which { _.links.list == testLinks.list }
+    }
+    
+    def testFalsePredicateAllowOptional = {
+      (links(_ => false)(testObject) map { DomainObject1(_) }).either must beLeft.like {
+        case errors => 
+          errors.list must haveSize(1) and have ((t: Throwable) =>
+            (t.asInstanceOf[MappingError[Option[NonEmptyList[ScaliakLink]]]].value map {
+              (_: NonEmptyList[ScaliakLink]).list
+            }) == testLinks.list.some
+          )
+      }
+    }
+
+    def testFalsePredicateNoOptional = {
+      (nonEmptyLinks(_ => false)(testObject) map { DomainObject2(_) }).either must beLeft.like {
+        case errors =>
+          errors.list must haveSize(1) and have (
+            (_: Throwable).asInstanceOf[MappingError[NonEmptyList[ScaliakLink]]].value.list == testLinks.list
+          )
+      }
+    }
+
+  }
+
   val testKey = "testKey"
   val testValue = "some value"
+  val testLinks = nel(ScaliakLink("bucket1", "key", "tag"))
   val testObject = ScaliakObject(
     key = testKey,
     bucket = "testBucket",
     contentType = "text/plain",
     vClock = mock[VClock],
-    bytes = testValue.getBytes
+    bytes = testValue.getBytes,
+    links = testLinks.some
   )
 }
 
