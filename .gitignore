@@ -3,4 +3,4 @@
 *.iml
 target
 .DS_Store
-.ensime
+.ensime*
