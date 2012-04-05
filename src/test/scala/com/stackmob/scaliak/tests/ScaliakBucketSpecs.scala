@@ -108,7 +108,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
   "Writing Data"                                                                    ^
     "With No Conversion"                                                            ^
       "When the Key Being Fetched Does Not Exist"                                   ^
-        """Given the default "Clobber Mutation""""                                  ^
+        """Given the default "Clobber Mutation" """                                 ^
           "Writes the ScaliakObject as passed in (converted to an IRiakObject)"     ! writeMissing.performsWrite ^
           "returns Success(None) when return body is false (default)"               ! writeMissing.noReturnBody ^
           "returns successfully with the stored object as a ScaliakObject instance" ! writeMissingReturnBody.noConversion ^
@@ -117,7 +117,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
           "Writes the ScaliakObject as returned from the mutator"                   ! writeMissing.customMutator ^
                                                                                     p^p^
       "When the Key Being Fetched Exists"                                           ^
-        """Given the default "Clobber Mutator""""                                   ^
+        """Given the default "Clobber Mutator" """                                  ^
           "Writes the ScaliakObject as passed in (converted to an IRiakObject)"     ! writeExisting.performsWrite ^
           "returns Success(None) when return body is false (default)"               ! writeExisting.noReturnBody ^
           "returns successfully with the stored object as a ScaliakObject instance" ! writeExistingReturnBody.noConversion ^
@@ -130,12 +130,12 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
                                                                                     p^
     "With Conversion"                                                               ^
       "When the Key Being Fetched Does Not Exist"                                   ^
-        """Given the default "Clobber Mutation""""                                  ^
+        """Given the default "Clobber Mutation" """                                 ^
           "Writes object converted to a PartialScaliakObject then a ScaliakObject"  ! writeMissing.domainObject ^p^
         "Given a mutator other than the default"                                    ^
           "Writes the object as returned from the mutator, converting it afterwards"! writeMissing.domainObjectCustomMutator ^p^p^
       "When the Key Being Fetched Exists"                                           ^
-        """Given the default "Clobber Mutation""""                                  ^
+        """Given the default "Clobber Mutation" """                                  ^
           "Writes object converted to a PartialScaliakObject then a ScaliakObject"  ! writeExisting.domainObject ^p^
         "Given a mutator other than the default"                                    ^
           "Writes the object as returned from the mutator, converting it afterwards"! writeExisting.domainObjectCustomMutator ^
