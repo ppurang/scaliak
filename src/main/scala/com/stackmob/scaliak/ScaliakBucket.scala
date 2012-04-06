@@ -180,7 +180,7 @@ class ScaliakBucket(rawClient: RawClient,
 
   import linkwalk._
   // This method discards any objects that have conversion errors
-  def linkWalk[T](obj: ScaliakObject, steps: LinkWalkSteps)(implicit converter: ScaliakConverter[T]): IO[Iterable[Iterable[T]]] = {
+  def linkWalk[T](obj: ReadObject, steps: LinkWalkSteps)(implicit converter: ScaliakConverter[T]): IO[Iterable[Iterable[T]]] = {
     for {
       walkResult <- rawClient.linkWalk(generateLinkWalkSpec(name, obj.key, steps)).pure[IO]
     } yield {
@@ -247,7 +247,7 @@ class ScaliakBucket(rawClient: RawClient,
 
 trait ScaliakConverter[T] {
   type ReadResult[T] = ValidationNEL[Throwable, T]
-  def read(o: ScaliakObject): ReadResult[T]
+  def read(o: ReadObject): ReadResult[T]
 
   def write(o: T): PartialScaliakObject
 }
@@ -259,13 +259,13 @@ object ScaliakConverter extends ScaliakConverters {
 
 trait ScaliakConverters {
 
-  def newConverter[T](r: ScaliakObject => ValidationNEL[Throwable, T], 
+  def newConverter[T](r: ReadObject => ValidationNEL[Throwable, T],
                       w: T => PartialScaliakObject) = new ScaliakConverter[T] {
-    def read(o: ScaliakObject) = r(o)
+    def read(o: ReadObject) = r(o)
     def write(o: T) = w(o)
   }
   
-  lazy val PassThroughConverter = newConverter[ScaliakObject](
+  lazy val PassThroughConverter = newConverter[ReadObject](
     (o =>
       o.successNel[Throwable]),
     (o =>

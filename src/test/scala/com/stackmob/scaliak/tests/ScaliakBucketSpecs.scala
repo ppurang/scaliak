@@ -15,7 +15,7 @@ import java.util.Date
 import com.basho.riak.client.query.indexes.{IntIndex, BinIndex}
 import query.indexes.{IntValueQuery, BinValueQuery, IndexQuery}
 
-// TODO: these specs really cover both ScaliakObject and ScaliakBucket, they should be split up
+// TODO: these specs really cover both ReadObject and ScaliakBucket, they should be split up
 class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUtils { def is =
   "Scaliak Bucket".title                                                            ^
   """                                                                               ^
@@ -28,7 +28,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       "When the key being fetched is missing returns None"                          ! skipped ^
       "When the key being fetched exists"                                           ^
         "When there are no conflicts"                                               ^
-          "returns a ScaliakObject whose key is the same as the one fetched"        ! simpleFetch.someWKey ^
+          "returns a ReadObject whose key is the same as the one fetched"        ! simpleFetch.someWKey ^
           "can get the stored bytes by calling getBytes on the returned object"     ! simpleFetch.testGetBytes ^
           "calling stringValue on the returned object returns the string value"     ! simpleFetch.testStringValue ^
           "the returned object has the same bucket name as the one used to fetch it"! simpleFetch.testBucketName ^
@@ -114,21 +114,21 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     "With No Conversion"                                                            ^
       "When the Key Being Fetched Does Not Exist"                                   ^
         """Given the default "Clobber Mutation" """                                 ^
-          "Writes the ScaliakObject as passed in (converted to an IRiakObject)"     ! writeMissing.performsWrite ^
+          "Writes the ReadObject as passed in (converted to an IRiakObject)"     ! writeMissing.performsWrite ^
           "returns Success(None) when return body is false (default)"               ! writeMissing.noReturnBody ^
-          "returns successfully with the stored object as a ScaliakObject instance" ! writeMissingReturnBody.noConversion ^
+          "returns successfully with the stored object as a ReadObject instance" ! writeMissingReturnBody.noConversion ^
                                                                                     p^
         "Given a mutator other than the default"                                    ^
-          "Writes the ScaliakObject as returned from the mutator"                   ! writeMissing.customMutator ^
+          "Writes the ReadObject as returned from the mutator"                   ! writeMissing.customMutator ^
                                                                                     p^p^
       "When the Key Being Fetched Exists"                                           ^
         """Given the default "Clobber Mutator" """                                  ^
-          "Writes the ScaliakObject as passed in (converted to an IRiakObject)"     ! writeExisting.performsWrite ^
+          "Writes the ReadObject as passed in (converted to an IRiakObject)"     ! writeExisting.performsWrite ^
           "returns Success(None) when return body is false (default)"               ! writeExisting.noReturnBody ^
-          "returns successfully with the stored object as a ScaliakObject instance" ! writeExistingReturnBody.noConversion ^
+          "returns successfully with the stored object as a ReadObject instance" ! writeExistingReturnBody.noConversion ^
                                                                                     p^
         "Given a mutator other than the default"                                    ^
-          "Writes the ScaliakObject as returned from the mutator"                   ! writeExisting.customMutator ^
+          "Writes the ReadObject as returned from the mutator"                   ! writeExisting.customMutator ^
                                                                                     p^p^
       "Can update the links on an object"                                           ! writeExisting.testUpdateLinks ^
       "Can update the metadata on an object"                                        ! writeExisting.testUpdateMetadata ^
@@ -138,12 +138,12 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     "With Conversion"                                                               ^
       "When the Key Being Fetched Does Not Exist"                                   ^
         """Given the default "Clobber Mutation" """                                 ^
-          "Writes object converted to a PartialScaliakObject then a ScaliakObject"  ! writeMissing.domainObject ^p^
+          "Writes object converted to a PartialScaliakObject then a ReadObject"  ! writeMissing.domainObject ^p^
         "Given a mutator other than the default"                                    ^
           "Writes the object as returned from the mutator, converting it afterwards"! writeMissing.domainObjectCustomMutator ^p^p^
       "When the Key Being Fetched Exists"                                           ^
         """Given the default "Clobber Mutation" """                                  ^
-          "Writes object converted to a PartialScaliakObject then a ScaliakObject"  ! writeExisting.domainObject ^p^
+          "Writes object converted to a PartialScaliakObject then a ReadObject"  ! writeExisting.domainObject ^p^
         "Given a mutator other than the default"                                    ^
           "Writes the object as returned from the mutator, converting it afterwards"! writeExisting.domainObjectCustomMutator ^
                                                                                     p^p^p^
@@ -202,7 +202,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
   "Deleting Data"                                                                   ^
     "By Key"                                                                        ^
       "Uses the raw client passing in the bucket name, key and delete meta"         ! deleteByKey.test ^p^
-    "By ScaliakObject"                                                              ^
+    "By ReadObject"                                                              ^
       "Deletes the object by its key"                                               ! deleteScaliakObject.test ^p^
     "By Domain Object"                                                              ^
       "Deletes the object by its key"                                               ! deleteDomainObject.test ^p^
@@ -335,7 +335,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     val rawClient = mock[RawClient]
     val bucket = createBucket
 
-    val obj = ScaliakObject(testKey, testBucket, testContentType, mock[VClock], "".getBytes)
+    val obj = ReadObject(testKey, testBucket, testContentType, mock[VClock], "".getBytes)
     lazy val result = bucket.delete(obj).unsafePerformIO
 
     def test = {
@@ -373,7 +373,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
 
     def noConversion = {
       val r = result.toOption | None
-      r aka "the object returned from store or None" must beSome[ScaliakObject].which { obj =>
+      r aka "the object returned from store or None" must beSome[ReadObject].which { obj =>
         obj.stringValue == testStoreObject.stringValue && obj.vClockString == mock2VClockStr
       }
     }
@@ -393,7 +393,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
 
     def noConversion = {
       val r = result.toOption | None
-      r aka "the object returned from store or None" must beSome[ScaliakObject].which { obj =>
+      r aka "the object returned from store or None" must beSome[ReadObject].which { obj =>
         obj.stringValue == testStoreObject.stringValue && obj.vClockString == mock2VClockStr
       }
     }
@@ -457,8 +457,8 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       newRawClient.store(MM.argThat(newExtractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
 
       var fakeValue: String = "fail"
-      implicit val mutator = ScaliakMutation.newMutation[ScaliakObject] {
-        (o: Option[ScaliakObject], n: ScaliakObject) => {
+      implicit val mutator = ScaliakMutation.newMutation[ReadObject] {
+        (o: Option[ReadObject], n: ReadObject) => {
           fakeValue = "custom"
           n.copy(bytes = fakeValue.getBytes)
         }
@@ -523,8 +523,8 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       newRawClient.store(MM.argThat(newExtractor), MM.isA(classOf[StoreMeta])) returns mockStoreResponse
 
       var fakeValue: String = "fail"
-      implicit val mutator = ScaliakMutation.newMutation[ScaliakObject] {
-        (o: Option[ScaliakObject], n: ScaliakObject) => {
+      implicit val mutator = ScaliakMutation.newMutation[ReadObject] {
+        (o: Option[ReadObject], n: ReadObject) => {
           fakeValue = "custom"
           n.copy(bytes = fakeValue.getBytes)
         }
@@ -589,7 +589,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
 
       val mockVClock = mock[VClock]
       mockVClock.asString returns "test"
-      implicit val testConverter = ScaliakConverter.newConverter[ScaliakObject](
+      implicit val testConverter = ScaliakConverter.newConverter[ReadObject](
         scObj => (new Exception("who cares")).failNel,
         obj => PartialScaliakObject(obj.key, obj.bytes, vClock = mockVClock.some)
       )
@@ -608,9 +608,9 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     def mockFetchVClockStr: String
     def extractor: IRiakObjExtractor
 
-    class CustomMutation extends ScaliakMutation[ScaliakObject] {
+    class CustomMutation extends ScaliakMutation[ReadObject] {
       val fakeValue = "custom"
-      def apply(old: Option[ScaliakObject], newObj: ScaliakObject) = {
+      def apply(old: Option[ReadObject], newObj: ReadObject) = {
         newObj.copy(bytes = fakeValue.getBytes)
       }
     }
@@ -621,7 +621,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     val mockVClock = mock[VClock]
     mockVClock.getBytes returns Array[Byte]()
     mockVClock.asString returns ""
-    val testStoreObject = new ScaliakObject(
+    val testStoreObject = new ReadObject(
       testKey,
       testBucket,
       testContentType,
@@ -663,7 +663,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     val lastModified = new java.util.Date(System.currentTimeMillis)
     val mockRiakObj1 = mockRiakObj(testBucket, testKey, "".getBytes(), "text/plain", "vclock", vTag = testVTag, lastModified = lastModified)
 
-    val testStoreObject = new ScaliakObject(
+    val testStoreObject = new ReadObject(
       testKey,
       testBucket,
       testContentType,
@@ -692,7 +692,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       extractor
     }
     
-    def testArg(f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]]): FetchMetaExtractor = {
+    def testArg(f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ReadObject]]]): FetchMetaExtractor = {
       val rawClient = mock[RawClient]
       val ex = initExtractor(rawClient)
       val bucket = createBucketWithClient(rawClient)
@@ -700,7 +700,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       ex
     }
 
-    def testWriteArg(f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]]): StoreMetaExtractor = {
+    def testWriteArg(f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ReadObject]]]): StoreMetaExtractor = {
       val rawClient = mock[RawClient]
       val ex = initWriteExtractor(rawClient)
       val bucket = createBucketWithClient(rawClient)
@@ -709,13 +709,13 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       ex
     }
 
-    def testDefaultFetchMetaBase[T](metaProp: FetchMeta => T, f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]]) = {
+    def testDefaultFetchMetaBase[T](metaProp: FetchMeta => T, f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ReadObject]]]) = {
       testArg(f).argument must beSome.like {
         case meta => metaProp(meta) must beNull
       }
     }
     
-    def testDefaultStoreMetaBase[T](metaProp: StoreMeta => T, f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]]) = {
+    def testDefaultStoreMetaBase[T](metaProp: StoreMeta => T, f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ReadObject]]]) = {
       testWriteArg(f).argument must beSome.like {
         case meta => metaProp(meta) must beNull
       }
@@ -729,13 +729,13 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     def testPutDefaultStoreMeta[T](metaProp: StoreMeta => T) = testDefaultStoreMetaBase(metaProp, _.put(testStoreObject))
 
 
-    def testPassedFetchMeta[T](f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]], metaProp: FetchMeta => T, expected: T) = {
+    def testPassedFetchMeta[T](f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ReadObject]]], metaProp: FetchMeta => T, expected: T) = {
       testArg(f).argument must beSome.like {
         case meta => metaProp(meta) must beEqualTo(expected)
       }
     }
 
-    def testPassedStoreMeta[T](f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ScaliakObject]]], metaProp: StoreMeta => T, expected: T) = {
+    def testPassedStoreMeta[T](f: ScaliakBucket => IO[ValidationNEL[Throwable, Option[ReadObject]]], metaProp: StoreMeta => T, expected: T) = {
       testWriteArg(f).argument must beSome.like {
         case meta => metaProp(meta) must beEqualTo(expected)
       }
@@ -839,8 +839,8 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     
     rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResp
 
-    lazy val result: Option[ScaliakObject] = {
-      val r: ValidationNEL[Throwable, Option[ScaliakObject]] = bucket.fetch(testKey).unsafePerformIO
+    lazy val result: Option[ReadObject] = {
+      val r: ValidationNEL[Throwable, Option[ReadObject]] = bucket.fetch(testKey).unsafePerformIO
 
       r.toOption | None
     }
@@ -887,7 +887,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
 
     rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResp
 
-    lazy val result: Option[ScaliakObject] = {
+    lazy val result: Option[ReadObject] = {
       bucket.fetch(testKey)
         .map(_.toOption | None)
         .unsafePerformIO
@@ -926,7 +926,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
 
     rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResp
 
-    lazy val result: Option[ScaliakObject] = {
+    lazy val result: Option[ReadObject] = {
       bucket.fetch(testKey)
         .map(_.toOption | None)
         .unsafePerformIO
@@ -965,8 +965,8 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
 
     rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResp
 
-    lazy val result: Option[ScaliakObject] = {
-      val r: ValidationNEL[Throwable, Option[ScaliakObject]] = bucket.fetch(testKey).unsafePerformIO
+    lazy val result: Option[ReadObject] = {
+      val r: ValidationNEL[Throwable, Option[ReadObject]] = bucket.fetch(testKey).unsafePerformIO
 
       r.toOption | None
     }
@@ -1153,8 +1153,8 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     }
 
     // the result after discarding any possible exceptions
-    lazy val result: Option[ScaliakObject] = {
-      val r: ValidationNEL[Throwable, Option[ScaliakObject]] = bucket.fetch(testKey).unsafePerformIO
+    lazy val result: Option[ReadObject] = {
+      val r: ValidationNEL[Throwable, Option[ReadObject]] = bucket.fetch(testKey).unsafePerformIO
 
       r.toOption | None
     }

@@ -5,7 +5,7 @@ import mock._
 import scalaz._
 import Scalaz._
 import com.basho.riak.client.cap.VClock
-import com.stackmob.scaliak.{ScaliakLink, ScaliakObject, ScaliakConverter}
+import com.stackmob.scaliak.{ScaliakLink, ReadObject, ScaliakConverter}
 
 /**
  * Created by IntelliJ IDEA.
@@ -18,7 +18,7 @@ class ApplicativeMappingSpecs extends Specification with Mockito { def is =
   "Applicative Mapping".title                                                       ^
   """
   This is a terrible name (of which there is probably a better, more appropriate)
-  for a feature that allows easier writing of converters (from ScaliakObject to a
+  for a feature that allows easier writing of converters (from ReadObject to a
   domain object) using applicative builders provided by Scalaz.
   """                                                                               ^
                                                                                     p^
@@ -229,7 +229,7 @@ class ApplicativeMappingSpecs extends Specification with Mockito { def is =
   val testKey = "testKey"
   val testValue = "some value"
   val testLinks = nel(ScaliakLink("bucket1", "key", "tag"))
-  val testObject = ScaliakObject(
+  val testObject = ReadObject(
     key = testKey,
     bucket = "testBucket",
     contentType = "text/plain",

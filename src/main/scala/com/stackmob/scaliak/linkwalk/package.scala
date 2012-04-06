@@ -31,7 +31,7 @@ package object linkwalk {
   
   implicit def nelLwsToLinkWalkStepsW(ls: NonEmptyList[LinkWalkStep]): LinkWalkStepsW = new LinkWalkStepsW(ls)
   
-  implicit def bucketObjTupleToLWTuple(tpl: (ScaliakBucket,  ScaliakObject)): LinkWalkStartTuple = new LinkWalkStartTuple(tpl)
+  implicit def bucketObjTupleToLWTuple(tpl: (ScaliakBucket,  ReadObject)): LinkWalkStartTuple = new LinkWalkStartTuple(tpl)
   
   implicit def linkWalkStepsToJava(steps: LinkWalkSteps): LinkedList[JLinkWalkStep] = {
     val list = new LinkedList[JLinkWalkStep]()

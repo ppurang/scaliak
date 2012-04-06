@@ -60,11 +60,11 @@ class LinkWalkingSpecs extends Specification with Mockito with util.MockRiakUtil
       "can mix with multiplication"                                                 ! testAddMultMix ^
       "mixing with multiplaction using operator syntax preserves op precedence"     ! testAddMultOperatorMix ^
                                                                                     endp^
-  "Walking from a Bucket & ScaliakObject"                                           ^
+  "Walking from a Bucket & ReadObject"                                           ^
     "Performs a linkWalk on the raw client passing in the correct start bucket"     ! walkingSimpleObject.testStartBucket ^
     "Passes in the correct start key"                                               ! walkingSimpleObject.testStartKey ^
     "passes in the correct steps"                                                   ! walkingSimpleObject.testStartSteps ^
-    "returns an Iterable[Iterable[ScaliakObject]] of the results"                   ! walkingSimpleObject.testSimpleResults ^
+    "returns an Iterable[Iterable[ReadObject]] of the results"                   ! walkingSimpleObject.testSimpleResults ^
                                                                                     endp^
   "Walking from a Bucket & DomainObject"                                            ^
     "converts all results to domain objects discarding conversion errors"           ! walkingSimpleObject.testDomainResults ^
@@ -156,7 +156,7 @@ class LinkWalkingSpecs extends Specification with Mockito with util.MockRiakUtil
     val testKey = "test-key"
     val testContentType = "text/plain"
     val mockVClock = mock[VClock]
-    val obj = new ScaliakObject(
+    val obj = new ReadObject(
       testKey,
       lwsBucket,
       testContentType,

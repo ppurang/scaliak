@@ -3,7 +3,7 @@ package com.stackmob.scaliak.tests
 import org.specs2._
 import scalaz._
 import Scalaz._
-import com.stackmob.scaliak.{ScaliakLink, ScaliakObject}
+import com.stackmob.scaliak.{ScaliakLink, ReadObject}
 
 /**
  * Created by IntelliJ IDEA.
@@ -15,7 +15,7 @@ import com.stackmob.scaliak.{ScaliakLink, ScaliakObject}
 class ScaliakObjectSpecs extends Specification { def is =
   "Scaliak Object".title                                                            ^
   """
-  Convenience methods for working with ScaliakObject (if not using domain objects),
+  Convenience methods for working with ReadObject (if not using domain objects),
   specifically metadata & links
   """                                                                               ^
                                                                                     p^
@@ -91,7 +91,7 @@ class ScaliakObjectSpecs extends Specification { def is =
 
   val existingMetadataKey = "m1"
   val existingMetadataVal = "v1"
-  val testObject = ScaliakObject(
+  val testObject = ReadObject(
     "key", 
     "bucket", "text/plain", 
     null, "".getBytes, 

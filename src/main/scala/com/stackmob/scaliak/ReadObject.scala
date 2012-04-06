@@ -7,16 +7,11 @@ import com.basho.riak.client.builders.RiakObjectBuilder
 import com.basho.riak.client.http.util.{Constants => RiakConstants}
 import com.basho.riak.client.{RiakLink, IRiakObject}
 import com.basho.riak.client.query.indexes.{RiakIndexes, IntIndex, BinIndex}
-import java.util.HashMap
 
 /**
- * Created by IntelliJ IDEA.
- * User: jordanrw
- * Date: 12/10/11
- * Time: 10:45 AM
+ * Represents data read from Riak
  */
-
-case class ScaliakObject(key: String,
+case class ReadObject(key: String,
                          bucket: String,
                          contentType: String,
                          vClock: VClock,
@@ -41,15 +36,15 @@ case class ScaliakObject(key: String,
 
   def containsLink(link: ScaliakLink) = (links map { _.list.contains(link) }) | false
 
-  def addLink(link: ScaliakLink): ScaliakObject = copy(links = (link :: ~(links map { _.list })).toNel)
+  def addLink(link: ScaliakLink): ReadObject = copy(links = (link :: ~(links map { _.list })).toNel)
   
-  def addLink(bucket: String, key: String, tag: String): ScaliakObject = addLink(ScaliakLink(bucket, key, tag))
+  def addLink(bucket: String, key: String, tag: String): ReadObject = addLink(ScaliakLink(bucket, key, tag))
   
   def addLinks(ls: Seq[ScaliakLink]) = copy(links = (ls ++ ~(links map { _.list })).toList.toNel)
   
-  def removeLink(link: ScaliakLink): ScaliakObject = copy(links = (~(links map { _.list filter { _ === link } })).toNel)
+  def removeLink(link: ScaliakLink): ReadObject = copy(links = (~(links map { _.list filter { _ === link } })).toNel)
 
-  def removeLink(bucket: String, key: String, tag: String): ScaliakObject = removeLink(ScaliakLink(bucket, key, tag))
+  def removeLink(bucket: String, key: String, tag: String): ReadObject = removeLink(ScaliakLink(bucket, key, tag))
 
   def removeLinks(tag: String) = copy(links = (~(links map { _.list filterNot { _.tag === tag } })).toNel)
 
@@ -59,9 +54,9 @@ case class ScaliakObject(key: String,
 
   def getMetadata(key: String) = metadata.get(key)
 
-  def addMetadata(key: String, value: String): ScaliakObject = copy(metadata = metadata + (key -> value))
+  def addMetadata(key: String, value: String): ReadObject = copy(metadata = metadata + (key -> value))
 
-  def addMetadata(kv: (String, String)): ScaliakObject = addMetadata(kv._1, kv._2)
+  def addMetadata(kv: (String, String)): ReadObject = addMetadata(kv._1, kv._2)
 
   def mergeMetadata(newMeta: Map[String, String]) = copy(metadata = metadata ++ newMeta)
 
@@ -73,10 +68,10 @@ case class ScaliakObject(key: String,
 
 }
 
-object ScaliakObject {
+object ReadObject {
   import scala.collection.JavaConverters._
-  implicit def IRiakObjectToScaliakObject(obj: IRiakObject): ScaliakObject = {
-    ScaliakObject(
+  implicit def IRiakObjectToScaliakObject(obj: IRiakObject): ReadObject = {
+    ReadObject(
       key = obj.getKey,
       bytes = obj.getValue,
       bucket = obj.getBucket,
@@ -93,6 +88,8 @@ object ScaliakObject {
   
 }
 
+// TODO: rename to WriteObject
+// TODO: try to get rid of underscores
 sealed trait PartialScaliakObject {
   import scala.collection.JavaConverters._
 

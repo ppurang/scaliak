@@ -3,7 +3,7 @@ package com.stackmob.scaliak.linkwalk
 import scalaz._
 import Scalaz._
 import com.basho.riak.client.query.LinkWalkStep.Accumulate
-import com.stackmob.scaliak.{ScaliakConverter, ScaliakResolver, ScaliakObject, ScaliakBucket}
+import com.stackmob.scaliak.{ScaliakConverter, ScaliakResolver, ReadObject, ScaliakBucket}
 
 /**
  * Created by IntelliJ IDEA.
@@ -70,7 +70,7 @@ class LinkWalkStepsW(values: LinkWalkSteps) extends LinkWalkStepOperators {
   val existingSteps = values
 }
 
-class LinkWalkStartTuple(values: (ScaliakBucket, ScaliakObject)) {
+class LinkWalkStartTuple(values: (ScaliakBucket, ReadObject)) {
   private val bucket = values._1
   private val obj = values._2
 
