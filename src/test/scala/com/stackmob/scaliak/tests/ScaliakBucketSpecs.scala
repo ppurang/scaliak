@@ -54,17 +54,17 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
             "containsLink returns true for a link that exists"                      ! nonEmptyLinkFetch.testContainsLinkTrueIfContained ^
             "containsLink returns false for a link that does not exist"             ! nonEmptyLinkFetch.testContainsLinkFalseIfNotContained ^p^
           "if the fetched object does not have metadata"                            ^
-             "metadata returns an empty Map[String, String]"                        ! simpleFetch.testEmptyMetadataMap ^
-             "hasMetadata returns false"                                            ! simpleFetch.testEmptyMetadataHasMetadataReturnsFalse ^
-             "containsMetadata returns false for any key"                           ! simpleFetch.testEmptyMetadataContainsMetadataReturnsFalse ^
-             "getMetadata returns None for any key"                                 ! simpleFetch.testEmptyMetadataGetReturnsNone ^
+            "metadata returns an empty Map[String, String]"                         ! simpleFetch.testEmptyMetadataMap ^
+            "hasMetadata returns false"                                             ! simpleFetch.testEmptyMetadataHasMetadataReturnsFalse ^
+            "containsMetadata returns false for any key"                            ! simpleFetch.testEmptyMetadataContainsMetadataReturnsFalse ^
+            "getMetadata returns None for any key"                                  ! simpleFetch.testEmptyMetadataGetReturnsNone ^
           "if the fetched object has metadata"                                      ^
-             "metadata returns a Map[String, String] w/ data from fetched obj"      ! nonEmptyMetadataFetch.testHasCorrectMetadata ^
-             "hasMetadata returns true"                                             ! nonEmptyMetadataFetch.testHasMetadataIsTrue ^
-             "containsMetadata returns true for a key in the metadata map"          ! nonEmptyMetadataFetch.testContainsMetadataForExistingKey ^
-             "containsMetadata returns false for a key in the metadata map"         ! nonEmptyMetadataFetch.testContainsMetadataForMissingKey ^
-             "getMetadata returns Some containing the string if key exists"         ! nonEmptyMetadataFetch.testGetMetadataForExistingKey ^
-             "getMetadata returns None if key does not exist"                       ! nonEmptyMetadataFetch.testGetMetadataForMissingKey ^p^
+            "metadata returns a Map[String, String] w/ data from fetched obj"       ! nonEmptyMetadataFetch.testHasCorrectMetadata ^
+            "hasMetadata returns true"                                              ! nonEmptyMetadataFetch.testHasMetadataIsTrue ^
+            "containsMetadata returns true for a key in the metadata map"           ! nonEmptyMetadataFetch.testContainsMetadataForExistingKey ^
+            "containsMetadata returns false for a key in the metadata map"          ! nonEmptyMetadataFetch.testContainsMetadataForMissingKey ^
+            "getMetadata returns Some containing the string if key exists"          ! nonEmptyMetadataFetch.testGetMetadataForExistingKey ^
+            "getMetadata returns None if key does not exist"                        ! nonEmptyMetadataFetch.testGetMetadataForMissingKey ^p^
           "if the fetched object does not have bin indexes"                         ^p^
           "if the fetched object has bin indexes"                                   ^p^
           "if the fetched object does not have int indexes"                         ^p^
