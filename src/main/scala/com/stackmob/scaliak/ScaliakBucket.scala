@@ -253,7 +253,8 @@ trait ScaliakConverters {
       o.successNel[Throwable]),
     (o =>
       PartialScaliakObject(key = o.key, value = o.bytes, contentType = o.contentType,
-        links = o.links, metadata = o.metadata, vTag = o.vTag, lastModified = o.lastModified))
+        links = o.links, metadata = o.metadata, binIndexes = o.binIndexes, intIndexes = o.intIndexes,
+        vTag = o.vTag, lastModified = o.lastModified))
   )
 }
 

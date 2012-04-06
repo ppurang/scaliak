@@ -6,7 +6,8 @@ import com.basho.riak.client.cap.VClock
 import com.basho.riak.client.builders.RiakObjectBuilder
 import com.basho.riak.client.http.util.{Constants => RiakConstants}
 import com.basho.riak.client.{RiakLink, IRiakObject}
-import com.basho.riak.client.query.indexes.{IntIndex, BinIndex}
+import com.basho.riak.client.query.indexes.{RiakIndexes, IntIndex, BinIndex}
+import java.util.HashMap
 
 /**
  * Created by IntelliJ IDEA.
@@ -100,6 +101,8 @@ sealed trait PartialScaliakObject {
   def _contentType: Option[String]
   def _links: Option[NonEmptyList[ScaliakLink]]
   def _metadata: Map[String, String]
+  def _binIndexes: Map[BinIndex, Set[String]]
+  def _intIndexes: Map[IntIndex, Set[Int]]
   def _vClock: Option[VClock]
   def _vTag: String
   def _lastModified: java.util.Date
@@ -110,6 +113,7 @@ sealed trait PartialScaliakObject {
       withValue _bytes
       withLinks ((_links map { _.list map { l => new RiakLink(l.bucket, l.key, l.tag) }}) | Nil).asJavaCollection
       withUsermeta _metadata.asJava
+      withIndexes buildIndexes
     )
     if (vClock != null) builder withVClock vClock
     else _vClock foreach builder.withVClock
@@ -118,6 +122,23 @@ sealed trait PartialScaliakObject {
     if (_lastModified != null) builder.withLastModified(_lastModified.getTime)
 
     builder.build
+  }
+
+  private def buildIndexes: RiakIndexes = {
+    val binIndexes: java.util.Map[BinIndex, java.util.Set[String]] = new java.util.HashMap[BinIndex,java.util.Set[String]]()
+    val intIndexes: java.util.Map[IntIndex, java.util.Set[java.lang.Integer]] = new java.util.HashMap[IntIndex,java.util.Set[java.lang.Integer]]()
+    for { (k,v) <- _binIndexes } {
+      val set: java.util.Set[String] = new java.util.HashSet[String]()
+      v.foreach(set.add(_))
+      binIndexes.put(k,set)
+    }
+    for { (k,v) <- _intIndexes } {
+      val set: java.util.Set[java.lang.Integer] = new java.util.HashSet[java.lang.Integer]()
+      v.foreach(set.add(_))
+      intIndexes.put(k,set)
+    }
+
+    new RiakIndexes(binIndexes, intIndexes)
   }
 }
 
@@ -130,6 +151,8 @@ object PartialScaliakObject {
             metadata: Map[String, String] = Map(),
             vClock: Option[VClock] = none,
             vTag: String = "",
+            binIndexes: Map[BinIndex, Set[String]] = Map(),
+            intIndexes: Map[IntIndex, Set[Int]] = Map(),
             lastModified: java.util.Date = null) = new PartialScaliakObject {
     def _key = key
     def _bytes = value
@@ -138,6 +161,8 @@ object PartialScaliakObject {
     def _metadata = metadata
     def _vClock = vClock
     def _vTag = vTag
+    def _binIndexes = binIndexes
+    def _intIndexes = intIndexes
     def _lastModified = lastModified
     
   }

@@ -71,8 +71,8 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
             "intIndex returns None for any index name"                              ! simpleFetch.testEmptyIntIndexesGetReturnsNone ^p^
           "if the fetched object has int indexes"                                   ^
             "intIndexes returns a Map[IntIndex,Set[Int]] containing all int idxs"   ! nonEmptyIntIndexesFetch.testHasAll ^
-            "intIndex returns Some(Set[Int]) for an index string that exists"       ! nonEmptyIntIndexesFetch.testGetIntIndexExists
-            "intIndex returns None for an index that d.n.e"                         ! nonEmptyIntIndexesFetch.testGetIntIndexMissing
+            "intIndex returns Some(Set[Int]) for an index string that exists"       ! nonEmptyIntIndexesFetch.testGetIntIndexExists ^
+            "intIndex returns None for an index that d.n.e"                         ! nonEmptyIntIndexesFetch.testGetIntIndexMissing ^
                                                                                     p^
         "When there are conflicts"                                                  ^
           "the default conflict resolver throws an UnresolvedConflictException"     ! conflictedFetch.testDefaultConflictRes ^
@@ -131,6 +131,8 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
                                                                                     p^p^
       "Can update the links on an object"                                           ! writeExisting.testUpdateLinks ^
       "Can update the metadata on an object"                                        ! writeExisting.testUpdateMetadata ^
+      "Can update the binary indexes on an object"                                  ! writeExisting.testUpdateBinIndexes ^
+      "Can update the integer indexes on an object"                                 ! writeExisting.testUpdateIntIndexes ^
                                                                                     p^
     "With Conversion"                                                               ^
       "When the Key Being Fetched Does Not Exist"                                   ^
@@ -365,6 +367,24 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       }
     }
 
+    def testUpdateBinIndexes = {
+      import scala.collection.JavaConverters._
+      result // execute call
+
+      extractor.argument must beSome.like {
+        case obj => obj.allBinIndexes.asScala.mapValues(_.asScala.toSet).toMap must beEqualTo(testStoreObject.binIndexes)
+      }
+    }
+
+    def testUpdateIntIndexes = {
+      import scala.collection.JavaConverters._
+      result // execute call
+
+      extractor.argument must beSome.like {
+        case obj => obj.allIntIndexes.asScala.mapValues(_.asScala.toSet).toMap must beEqualTo(testStoreObject.intIndexes)
+      }
+    }
+
     def customMutator = {
       val newRawClient = mock[RawClient]
       val newBucket = createBucketWithClient(newRawClient)
@@ -544,7 +564,9 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       mockVClock,
       "".getBytes,
       links = nel(ScaliakLink("test", "test", "test")).some,
-      metadata = Map("m1" -> "v1", "m2" -> "v2")
+      metadata = Map("m1" -> "v1", "m2" -> "v2"),
+      binIndexes = Map(BinIndex.named("idx1") -> Set("a", "b"), BinIndex.named("idx2") -> Set("d", "e")),
+      intIndexes = Map(IntIndex.named("idx1") -> Set(1), IntIndex.named("idx2") -> Set(3,4))
     )
 
     class IRiakObjExtractor extends util.MockitoArgumentExtractor[IRiakObject]
