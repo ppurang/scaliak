@@ -138,18 +138,18 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     "With Conversion"                                                               ^
       "When the Key Being Fetched Does Not Exist"                                   ^
         """Given the default "Clobber Mutation" """                                 ^
-          "Writes object converted to a PartialScaliakObject then a ReadObject"  ! writeMissing.domainObject ^p^
+          "Writes object converted to a WriteObject then a ReadObject"  ! writeMissing.domainObject ^p^
         "Given a mutator other than the default"                                    ^
           "Writes the object as returned from the mutator, converting it afterwards"! writeMissing.domainObjectCustomMutator ^p^p^
       "When the Key Being Fetched Exists"                                           ^
         """Given the default "Clobber Mutation" """                                  ^
-          "Writes object converted to a PartialScaliakObject then a ReadObject"  ! writeExisting.domainObject ^p^
+          "Writes object converted to a WriteObject then a ReadObject"  ! writeExisting.domainObject ^p^
         "Given a mutator other than the default"                                    ^
           "Writes the object as returned from the mutator, converting it afterwards"! writeExisting.domainObjectCustomMutator ^
                                                                                     p^p^p^
     "Without Reading First"                                                         ^
       "Does not call read before writing the data"                                  ! writeOnly.writesButNoRead ^
-      "Preserves the VClock from the generated PartialScaliakObject if there is one"! writeOnly.usesPartialScaliakObjectVClock ^
+      "Preserves the VClock from the generated WriteObject if there is one"! writeOnly.usesPartialScaliakObjectVClock ^
       "Setting the w value for the request"                                         ^
         "if not set the generated meta has a null w value"                          ! riakArguments.testDefaultWPut ^
         "if set the generated meta has the given w value"                           ! riakArguments.testPassedWPut ^p^
@@ -223,7 +223,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
   val dummyWriteVal = "dummy"
   val dummyDomainConverter = ScaliakConverter.newConverter[DummyDomainObject](
     o => (new DummyDomainObject(o.key)).successNel[Throwable],
-    o => PartialScaliakObject(o.someField, dummyWriteVal.getBytes)
+    o => WriteObject(o.someField, dummyWriteVal.getBytes)
   )
   val mutationValueAddition = "abc"
   val dummyDomainMutation = ScaliakMutation.newMutation[DummyDomainObject] {
@@ -591,7 +591,7 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       mockVClock.asString returns "test"
       implicit val testConverter = ScaliakConverter.newConverter[ReadObject](
         scObj => (new Exception("who cares")).failNel,
-        obj => PartialScaliakObject(obj.key, obj.bytes, vClock = mockVClock.some)
+        obj => WriteObject(obj.key, obj.bytes, vClock = mockVClock.some)
       )
 
       newBucket.put(testStoreObject).unsafePerformIO

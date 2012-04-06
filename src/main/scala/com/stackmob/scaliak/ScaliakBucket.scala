@@ -116,9 +116,9 @@ class ScaliakBucket(rawClient: RawClient,
     //TODO: need to not convert the object here
     // it causes two calls to converter.write.
     // Instead force domain objects to implement a simple
-    // interface exposing there key
+    // interface exposing their key
     // can also make it part of the scaliak converter interface
-    // and remove it from PartialScaliakObject (change ParitalScaliakObject to ScaliakSerializable)
+    // and remove it from WriteObject
     val key = converter.write(obj)._key
     (for {
       resp <- rawFetch(key, r, pr, notFoundOk, basicQuorum, returnDeletedVClock)
@@ -249,7 +249,7 @@ trait ScaliakConverter[T] {
   type ReadResult[T] = ValidationNEL[Throwable, T]
   def read(o: ReadObject): ReadResult[T]
 
-  def write(o: T): PartialScaliakObject
+  def write(o: T): WriteObject
 }
 
 
@@ -260,7 +260,7 @@ object ScaliakConverter extends ScaliakConverters {
 trait ScaliakConverters {
 
   def newConverter[T](r: ReadObject => ValidationNEL[Throwable, T],
-                      w: T => PartialScaliakObject) = new ScaliakConverter[T] {
+                      w: T => WriteObject) = new ScaliakConverter[T] {
     def read(o: ReadObject) = r(o)
     def write(o: T) = w(o)
   }
@@ -269,7 +269,7 @@ trait ScaliakConverters {
     (o =>
       o.successNel[Throwable]),
     (o =>
-      PartialScaliakObject(key = o.key, value = o.bytes, contentType = o.contentType,
+      WriteObject(key = o.key, value = o.bytes, contentType = o.contentType,
         links = o.links, metadata = o.metadata, binIndexes = o.binIndexes, intIndexes = o.intIndexes,
         vTag = o.vTag, lastModified = o.lastModified))
   )

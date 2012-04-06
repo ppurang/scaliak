@@ -88,9 +88,11 @@ object ReadObject {
   
 }
 
-// TODO: rename to WriteObject
+/**
+ * Represents data that is intented to be written to riak
+ */
 // TODO: try to get rid of underscores
-sealed trait PartialScaliakObject {
+sealed trait WriteObject {
   import scala.collection.JavaConverters._
 
   def _key: String
@@ -139,7 +141,7 @@ sealed trait PartialScaliakObject {
   }
 }
 
-object PartialScaliakObject {
+object WriteObject {
   import com.basho.riak.client.http.util.{Constants => RiakConstants}
   def apply(key: String, 
             value: Array[Byte], 
@@ -150,7 +152,7 @@ object PartialScaliakObject {
             vTag: String = "",
             binIndexes: Map[BinIndex, Set[String]] = Map(),
             intIndexes: Map[IntIndex, Set[Int]] = Map(),
-            lastModified: java.util.Date = null) = new PartialScaliakObject {
+            lastModified: java.util.Date = null) = new WriteObject {
     def _key = key
     def _bytes = value
     def _contentType = Option(contentType)

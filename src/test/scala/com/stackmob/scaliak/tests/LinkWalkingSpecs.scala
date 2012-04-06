@@ -225,7 +225,7 @@ class LinkWalkingSpecs extends Specification with Mockito with util.MockRiakUtil
       val failKey = "key4"
       implicit val converter = ScaliakConverter.newConverter[TestDomainObject](
         scObj => if (scObj.key === failKey) (new  Exception("conversion fail")).failNel else TestDomainObject(scObj.key, scObj.stringValue).successNel,
-        dObj => PartialScaliakObject(dObj.key, dObj.value.getBytes)
+        dObj => WriteObject(dObj.key, dObj.value.getBytes)
       )
       val expectedValues = List(List(TestDomainObject("key1", "value1"), TestDomainObject("key2", "value2")), List(TestDomainObject("key3", "value3")))
       val mockedValues = expectedValues.map { _ map { dObj => mockRiakObj(lwsBucket, dObj.key, dObj.value.getBytes, "text/plain", "vclock") } }

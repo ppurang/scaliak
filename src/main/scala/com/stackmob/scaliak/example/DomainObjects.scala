@@ -17,7 +17,7 @@ object SomeDomainObject {
 
   implicit val domainConverter: ScaliakConverter[SomeDomainObject] = ScaliakConverter.newConverter[SomeDomainObject](
     (o: ReadObject) => new SomeDomainObject(o.key, o.stringValue).successNel,
-    (o: SomeDomainObject) => PartialScaliakObject(o.key, o.value.getBytes)
+    (o: SomeDomainObject) => WriteObject(o.key, o.value.getBytes)
   )
 
 }
