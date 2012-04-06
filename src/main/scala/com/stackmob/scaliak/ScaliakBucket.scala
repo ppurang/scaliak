@@ -7,7 +7,9 @@ import com.basho.riak.client.query.functions.{NamedFunction, NamedErlangFunction
 import scala.collection.JavaConverters._
 import com.basho.riak.client.cap.{UnresolvedConflictException, Quorum}
 import com.basho.riak.client.raw._
+import query.indexes.{IntValueQuery, BinValueQuery, IndexQuery}
 import query.LinkWalkSpec
+import com.basho.riak.client.query.indexes.{BinIndex, IntIndex}
 
 /**
  * Created by IntelliJ IDEA.
@@ -185,10 +187,25 @@ class ScaliakBucket(rawClient: RawClient,
       // this is kinda ridiculous
       walkResult.asScala map { _.asScala map { converter.read(_).toOption } filter { _.isDefined } map { _.get } } filterNot { _.isEmpty }
     }
-  }  
+  }
+
+  def fetchIndexByValue(index: String, value: String): IO[Validation[Throwable,List[String]]] = {
+    fetchValueIndex(new BinValueQuery(BinIndex.named(index), name, value))
+  }
+
+  def fetchIndexByValue(index: String, value: Int): IO[Validation[Throwable,List[String]]] = {
+    fetchValueIndex(new IntValueQuery(IntIndex.named(index), name, value))
+  }
   
   private def generateLinkWalkSpec(bucket: String, key: String, steps: LinkWalkSteps) = {
     new LinkWalkSpec(steps, bucket, key)
+  }
+
+  private def fetchValueIndex(query: IndexQuery): IO[Validation[Throwable, List[String]]] = {
+    rawClient.fetchIndex(query)
+      .pure[IO]
+      .map(_.asScala.toList.success[Throwable])
+     .except { _.fail[List[String]].pure[IO] }
   }
 
   private def rawFetch(key: String, 

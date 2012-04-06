@@ -13,6 +13,7 @@ import com.basho.riak.client.raw._
 import com.basho.riak.client.{RiakLink, IRiakObject}
 import java.util.Date
 import com.basho.riak.client.query.indexes.{IntIndex, BinIndex}
+import query.indexes.{IntValueQuery, BinValueQuery, IndexQuery}
 
 // TODO: these specs really cover both ScaliakObject and ScaliakBucket, they should be split up
 class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUtils { def is =
@@ -207,6 +208,12 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       "Deletes the object by its key"                                               ! deleteDomainObject.test ^p^
     "If fetch before delete is true (defaults to false)"                            ^
       "Adds the returned vClock to the delete meta"                                 ! deleteWithFetchBefore.testAddsVclock ^
+                                                                                    endp^
+  "Fetching by Index"                                                               ^
+    "by value"                                                                      ^
+      "if the value is a string a BinValueQuery is performed"                       ! fetchIndexByValue.testBinValueGeneratesBinQuery ^
+      "if the value is an integer a IntValueQuery is performed"                     ! fetchIndexByValue.testIntValueGeneratesIntQuery ^
+      "returns the results of the query, a List[String] as returned by the client"  ! fetchIndexByValue.testReturnsKeys ^
                                                                                     end
 
 
@@ -223,6 +230,63 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
     (mbOld, newObj) => {
       new DummyDomainObject(newObj.someField + mutationValueAddition)
     }
+  }
+
+  object fetchIndexByValue extends context {
+    val rawClient = mock[RawClient] // not used in these tests
+    val bucket = createBucket // not used in these tests
+
+    class IndexQueryExtractor extends util.MockitoArgumentExtractor[IndexQuery]
+
+    val testIdx = "idx1"
+
+    def testBinValueGeneratesBinQuery = {
+      val client = mock[RawClient]
+      val b = createBucketWithClient(client)
+      val testBinVal = "someval"
+
+      val extractor = new IndexQueryExtractor
+      val testResults: java.util.List[String] = new java.util.LinkedList[String]()
+      testResults.add("key1")
+      testResults.add("key12")
+      client.fetchIndex(MM.argThat(extractor)) returns testResults
+
+      b.fetchIndexByValue(index = testIdx, value = testBinVal).unsafePerformIO.toOption // execute
+      extractor.argument must beSome.like {
+        case obj: BinValueQuery => (obj.getBucket must beEqualTo(bucket.name)) and (obj.getIndex must beEqualTo(testIdx + "_bin")) and (obj.getValue must beEqualTo(testBinVal))
+      }
+    }
+
+    def testIntValueGeneratesIntQuery = {
+      val client = mock[RawClient]
+      val b = createBucketWithClient(client)
+      val testIntVal = 1
+
+      val extractor = new IndexQueryExtractor
+      val testResults: java.util.List[String] = new java.util.LinkedList[String]()
+      client.fetchIndex(MM.argThat(extractor)) returns testResults
+
+      b.fetchIndexByValue(index = testIdx, value = testIntVal).unsafePerformIO.toOption // execute
+      extractor.argument must beSome.like {
+        case obj: IntValueQuery => (obj.getBucket must beEqualTo(bucket.name)) and (obj.getIndex must beEqualTo(testIdx + "_int")) and (obj.getValue must beEqualTo(testIntVal))
+      }
+    }
+
+    def testReturnsKeys = {
+      import scala.collection.JavaConverters._
+      val client = mock[RawClient]
+      val b = createBucketWithClient(client)
+      val indexVal = "string"
+      val testResults: java.util.List[String] = new java.util.LinkedList[String]()
+      testResults.add("1")
+      testResults.add("2")
+      client.fetchIndex(any) returns testResults
+
+      b.fetchIndexByValue(index = testIdx, value = indexVal).map(_.toOption).unsafePerformIO must beSome.like {
+        case res => res must beEqualTo(testResults.asScala.toList)
+      }
+    }
+
   }
 
   object deleteWithFetchBefore extends context {
