@@ -6,21 +6,15 @@ import scalaz._
 import Scalaz._
 import effects._
 import com.basho.riak.client.query.functions.NamedErlangFunction
-import org.mockito.stubbing.OngoingStubbing
 import com.basho.riak.client.cap.{UnresolvedConflictException, VClock, Quorum}
 import org.mockito.{Matchers => MM}
 import com.stackmob.scaliak._
 import com.basho.riak.client.raw._
 import com.basho.riak.client.{RiakLink, IRiakObject}
 import java.util.Date
+import com.basho.riak.client.query.indexes.{IntIndex, BinIndex}
 
-/**
- * Created by IntelliJ IDEA.
- * User: jordanrw
- * Date: 12/9/11
- * Time: 10:30 PM
- */
-
+// TODO: these specs really cover both ScaliakObject and ScaliakBucket, they should be split up
 class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUtils { def is =
   "Scaliak Bucket".title                                                            ^
   """                                                                               ^
@@ -65,10 +59,20 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
             "containsMetadata returns false for a key in the metadata map"          ! nonEmptyMetadataFetch.testContainsMetadataForMissingKey ^
             "getMetadata returns Some containing the string if key exists"          ! nonEmptyMetadataFetch.testGetMetadataForExistingKey ^
             "getMetadata returns None if key does not exist"                        ! nonEmptyMetadataFetch.testGetMetadataForMissingKey ^p^
-          "if the fetched object does not have bin indexes"                         ^p^
-          "if the fetched object has bin indexes"                                   ^p^
-          "if the fetched object does not have int indexes"                         ^p^
-          "if the fetched object has int indexes"                                   ^p^
+          "if the fetched object does not have bin indexes"                         ^
+            "binIndexes is empty"                                                   ! simpleFetch.testEmptyBinIndexes ^
+            "binIndex returns None for any index name"                              ! simpleFetch.testEmptyBinIndexesGetIndexReturnsNone ^p^
+          "if the fetched object has bin indexes"                                   ^
+            "binIndexes returns a Map[BinIndex,Set[String]] containing all bin idxs"! nonEmptyBinIndexesFetch.testHasAll ^
+            "binIndex returns Some(Set[String]) for an index string that exists"    ! nonEmptyBinIndexesFetch.testGetBinIndexExists ^
+            "binIndex returns None for an index string that d.n.e"                  ! nonEmptyBinIndexesFetch.testGetBinIndexMissing ^p^
+          "if the fetched object does not have int indexes"                         ^
+            "intIndexes is empty"                                                   ! simpleFetch.testEmptyIntIndexes ^
+            "intIndex returns None for any index name"                              ! simpleFetch.testEmptyIntIndexesGetReturnsNone ^p^
+          "if the fetched object has int indexes"                                   ^
+            "intIndexes returns a Map[IntIndex,Set[Int]] containing all int idxs"   ! nonEmptyIntIndexesFetch.testHasAll ^
+            "intIndex returns Some(Set[Int]) for an index string that exists"       ! nonEmptyIntIndexesFetch.testGetIntIndexExists
+            "intIndex returns None for an index that d.n.e"                         ! nonEmptyIntIndexesFetch.testGetIntIndexMissing
                                                                                     p^
         "When there are conflicts"                                                  ^
           "the default conflict resolver throws an UnresolvedConflictException"     ! conflictedFetch.testDefaultConflictRes ^
@@ -785,6 +789,84 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
         
   }
 
+  object nonEmptyIntIndexesFetch extends context {
+    val rawClient = mock[RawClient]
+    val bucket = createBucket
+
+    val indexes = Map("idx1" -> Set(1,2), "idx2" -> Set(3))
+    val expectedIndexes = (for { (k,v) <- indexes } yield (IntIndex.named(k), v)).toMap
+    val mockObj = mockRiakObj(testBucket, testKey, "value".getBytes, "text/plain", "vlock", intIndexes = indexes)
+
+    val mockResp = mockRiakResponse(Array(mockObj))
+
+    rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResp
+
+    lazy val result: Option[ScaliakObject] = {
+      bucket.fetch(testKey)
+        .map(_.toOption | None)
+        .unsafePerformIO
+    }
+
+    def testHasAll = {
+      result must beSome.like {
+        case obj => obj.intIndexes must haveTheSameElementsAs(expectedIndexes)
+      }
+    }
+
+    def testGetIntIndexExists = {
+      result must beSome.like {
+        case obj => obj.intIndex("idx1") must beSome.like {
+          case values => values must haveTheSameElementsAs(expectedIndexes(IntIndex.named("idx1")))
+        }
+      }
+    }
+
+    def testGetIntIndexMissing = {
+      result must beSome.like {
+        case obj => obj.intIndex("dne") must beNone
+      }
+    }
+  }
+
+  object nonEmptyBinIndexesFetch extends context {
+    val rawClient = mock[RawClient]
+    val bucket = createBucket
+
+    val indexes = Map("idx1" -> Set("a", "b"), "idx2" -> Set("d"))
+    val expectedIndexes = (for { (k,v) <- indexes } yield (BinIndex.named(k), v)).toMap
+    val mockObj = mockRiakObj(testBucket, testKey, "value".getBytes, "text/plain", "vclock", binIndexes = indexes)
+
+    val mockResp = mockRiakResponse(Array(mockObj))
+
+    rawClient.fetch(MM.eq(testBucket), MM.eq(testKey), MM.isA(classOf[FetchMeta])) returns mockResp
+
+    lazy val result: Option[ScaliakObject] = {
+      bucket.fetch(testKey)
+        .map(_.toOption | None)
+        .unsafePerformIO
+    }
+
+    def testHasAll = {
+      result must beSome.like {
+        case obj => obj.binIndexes must haveTheSameElementsAs(expectedIndexes)
+      }
+    }
+
+    def testGetBinIndexExists = {
+      result must beSome.like {
+        case obj => obj.binIndex("idx1") must beSome.like {
+          case values => values must haveTheSameElementsAs(expectedIndexes(BinIndex.named("idx1")))
+        }
+      }
+    }
+
+    def testGetBinIndexMissing = {
+      result must beSome.like {
+        case obj => obj.binIndex("dne") must beNone
+      }
+    }
+  }
+
   object nonEmptyLinkFetch extends context {
     val rawClient = mock[RawClient]
     val bucket = createBucket
@@ -929,6 +1011,30 @@ class ScaliakBucketSpecs extends Specification with Mockito with util.MockRiakUt
       val res1 = r.getMetadata("m1")
       val res2 = r.getMetadata("m2")
       List(res1, res2) must haveTheSameElementsAs(None :: None :: Nil)
+    }
+
+    def testEmptyBinIndexes = {
+      result must beSome.like {
+        case obj => obj.binIndexes must beEmpty
+      }
+    }
+
+    def testEmptyBinIndexesGetIndexReturnsNone = {
+      result must beSome.like {
+        case obj => obj.binIndex("whocares") must beNone
+      }
+    }
+
+    def testEmptyIntIndexes = {
+      result must beSome.like {
+        case obj => obj.intIndexes must beEmpty
+      }
+    }
+
+    def testEmptyIntIndexesGetReturnsNone = {
+      result must beSome.like {
+        case obj => obj.intIndex("whocares") must beNone
+      }
     }
 
     def testConversionExplicit = {

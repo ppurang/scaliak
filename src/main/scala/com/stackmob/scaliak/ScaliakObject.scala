@@ -6,6 +6,7 @@ import com.basho.riak.client.cap.VClock
 import com.basho.riak.client.builders.RiakObjectBuilder
 import com.basho.riak.client.http.util.{Constants => RiakConstants}
 import com.basho.riak.client.{RiakLink, IRiakObject}
+import com.basho.riak.client.query.indexes.{IntIndex, BinIndex}
 
 /**
  * Created by IntelliJ IDEA.
@@ -22,7 +23,9 @@ case class ScaliakObject(key: String,
                          vTag: String = "",
                          links: Option[NonEmptyList[ScaliakLink]] = none,
                          metadata: Map[String, String] = Map(),
-                         lastModified: java.util.Date = new java.util.Date(System.currentTimeMillis)) {
+                         lastModified: java.util.Date = new java.util.Date(System.currentTimeMillis),
+                         binIndexes: Map[BinIndex, Set[String]] = Map(),
+                         intIndexes: Map[IntIndex, Set[Int]] = Map()) {
   
   def vClockString = vClock.asString
 
@@ -63,6 +66,10 @@ case class ScaliakObject(key: String,
 
   def removeMetadata(key: String) = copy(metadata = metadata - key)
 
+  def binIndex(name: String): Option[Set[String]] = binIndexes.get(BinIndex.named(name))
+
+  def intIndex(name: String): Option[Set[Int]] = intIndexes.get(IntIndex.named(name))
+
 }
 
 object ScaliakObject {
@@ -77,7 +84,9 @@ object ScaliakObject {
       contentType = obj.getContentType,
       lastModified = obj.getLastModified,
       links = (obj.getLinks.asScala map { l => l: ScaliakLink }).toList.toNel,
-      metadata = obj.getMeta.asScala.toMap
+      metadata = obj.getMeta.asScala.toMap,
+      binIndexes = obj.allBinIndexes.asScala.mapValues(_.asScala.toSet).toMap,
+      intIndexes = obj.allIntIndexes.asScala.mapValues(_.asScala.map(_.intValue()).toSet).toMap
     )
   }
   
