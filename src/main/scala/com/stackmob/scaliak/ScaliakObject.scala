@@ -90,14 +90,6 @@ object ScaliakObject {
     )
   }
   
-  implicit def ScaliakObjectToIRiakObject(obj: ScaliakObject): IRiakObject = {
-    val base = (RiakObjectBuilder.newBuilder(obj.bucket, obj.key) 
-      withContentType obj.contentType 
-      withVClock obj.vClock
-      withValue obj.getBytes)
-    if (obj.vTag.isEmpty) base withVtag obj.vTag else base withVtag null
-    base.build()
-  }
 }
 
 sealed trait PartialScaliakObject {
