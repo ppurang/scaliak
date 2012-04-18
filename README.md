@@ -1,6 +1,6 @@
 # Scaliak
 
-Scaliak is a scala-ified version of the High-Level Riak Java Client w/ a Functional Twist.
+Scaliak is a scala-ified version of the High-Level Riak Java Client w/ a Functional Twist. It is currently being used in production at StackMob.
 
 ## Status
 
@@ -30,7 +30,7 @@ The following is missing:
 
 ## Design
 
-The High-Level Riak Java Client developed by Basho has a great model for working with data stored in Riak. However, it can be a bit cumbersome to use from Scala where a library written for the language can provide a more concise interface. 
+The [High-Level Riak Java Client](https://github.com/basho/riak-java-client) developed by Basho has a great model for working with data stored in Riak. However, it can be a bit cumbersome to use from Scala where a library written for the language can provide a more concise interface. 
 
 The Riak Java Client uses the concept of a `Converter`, `Resolver`, and `Mutation` to work with your Riak data. The `Converter` allows for conversion of domain objects and the `Resolver` provides an interface for conflict resolution in your domain. Since you don't know whether the data you are writing to data already exists, the `Mutation` provides an interface for how to insert/update data given the possibly existing data. 
 
