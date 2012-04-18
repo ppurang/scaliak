@@ -57,9 +57,15 @@ All `IO` actions returned are setup to handle any exception thrown in the proces
 
 ## Usage
 
-For examples please see the `examples` package: https://github.com/stackmob/scaliak/tree/master/src/main/scala/com/stackmob/scaliak/example. More documentation a real examples project (instead of a package) are coming soon.
+For examples please [see the `examples` package](https://github.com/stackmob/scaliak/tree/master/src/main/scala/com/stackmob/scaliak/example). More documentation and a real examples project (instead of a package) are coming soon.
 
 ## Contributing
+
+is easy!
+
+* Fork the code
+* Make your changes
+* Submit a pull request
 
 ## License
 
