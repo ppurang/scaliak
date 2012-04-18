@@ -19,6 +19,7 @@ The following is supported:
 
 The following is missing:
 
+  - retriers (coming soon)
   - Convenience methods for creating pbc or default http clients
   - ReadObject is not 1-1 with IRiakObject
   - cannot specify delete meta (coming soon)
